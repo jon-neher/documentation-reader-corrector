@@ -1,0 +1,30 @@
+{
+  "name": "documentation-reader-corrector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo 'No linter configured'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jon-neher/documentation-reader-corrector.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/jon-neher/documentation-reader-corrector/issues"
+  },
+  "homepage": "https://github.com/jon-neher/documentation-reader-corrector#readme",
+  "dependencies": {
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
