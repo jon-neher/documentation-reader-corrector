@@ -1,6 +1,8 @@
 import OpenAI from 'openai';
 
-export type ChatMessage = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string };
+// Align our ChatMessage with the OpenAI SDK's Chat Completions message type
+// so we can pass messages to `chat.completions.create` without assertions.
+export type ChatMessage = OpenAI.ChatCompletionMessageParam;
 
 export type MakeRequestOptions = {
   model?: string;
@@ -44,7 +46,7 @@ export class OpenAIClient {
     const resp = await this.sdk.chat.completions.create(
       {
         model,
-        messages: messages as any,
+        messages,
         temperature,
         max_tokens: maxTokens,
         ...(extra || {}),
