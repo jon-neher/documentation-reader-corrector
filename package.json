@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "license": "UNLICENSED",
   "scripts": {
     "openai:test": "npm run build && node -e \"import('./src/openaiClient.js').then(m => m.testConnection()).then(()=>{console.log('Connection test succeeded')}).catch(e=>{console.error(e.message); process.exit(1)})\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
-    "lint": "echo 'No linter configured'"
+    "lint": "echo 'No linter configured'",
+    "poc:langchain:correction-analysis": "node ./examples/langchain/poc_correction_analysis.mjs"
   },
   "dependencies": {
-    "openai": "^5.20.1"
+    "openai": "^5.20.1",
+    "@langchain/openai": "^0.3.8",
+    "@langchain/core": "^0.3.29",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.18.1",
