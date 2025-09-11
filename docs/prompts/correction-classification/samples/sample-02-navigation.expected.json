@@ -1,0 +1,8 @@
+{
+  "correctionType": "navigation",
+  "confidence": 94,
+  "originalQuestion": "How do I add a new user to my workspace?",
+  "botResponse": "Navigate to Settings → Security → Users.",
+  "correction": "Go to Organization → Members.",
+  "reason": "The Users page moved under Organization in the 2024 redesign."
+}

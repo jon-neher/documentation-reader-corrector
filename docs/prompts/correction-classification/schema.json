@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/correction-classification.schema.json",
+  "title": "CorrectionClassification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "correctionType",
+    "confidence",
+    "originalQuestion",
+    "botResponse",
+    "correction",
+    "reason"
+  ],
+  "properties": {
+    "correctionType": {
+      "type": "string",
+      "enum": ["factual", "navigation", "outdated"],
+      "description": "Classification of the correction"
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in classification (0-100)"
+    },
+    "originalQuestion": {
+      "type": "string",
+      "minLength": 0
+    },
+    "botResponse": {
+      "type": "string",
+      "minLength": 0
+    },
+    "correction": {
+      "type": "string",
+      "minLength": 0
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 0
+    }
+  }
+}

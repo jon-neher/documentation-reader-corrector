@@ -1,0 +1,8 @@
+{
+  "correctionType": "outdated",
+  "confidence": 92,
+  "originalQuestion": "How can I generate an API token?",
+  "botResponse": "Go to Developer settings → Tokens (legacy) and click Generate.",
+  "correction": "Use Profile → Security → Access tokens.",
+  "reason": "The legacy Tokens page was removed in January 2025."
+}
