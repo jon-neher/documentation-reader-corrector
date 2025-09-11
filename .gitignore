@@ -1,5 +1,17 @@
-node_modules
-.cache
-dist
+# Node
+node_modules/
+npm-debug.log*
+
+# Build artifacts
+dist/
+
+# Env files (do not commit secrets)
 .env
+.env.*
+
+# OS/editor
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.cache/
