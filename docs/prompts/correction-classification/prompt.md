@@ -10,6 +10,13 @@ You are analyzing support bot corrections. Given a correction context, classify 
 - navigation: Wrong UI path or location
 - outdated: Information that was correct but is now obsolete
 
+## Disambiguation
+
+- If the UI location/path changed but the feature still exists, choose `navigation`.
+- If the referenced page/feature was removed or deprecated, choose `outdated`.
+- If the claim was never true (independent of UI location), choose `factual`.
+- If multiple seem to apply, prefer `outdated` over `factual`, and prefer `navigation` over `outdated` when the only change is location.
+
 ## Input Format
 
 Provide inputs exactly as labeled lines:
@@ -21,18 +28,12 @@ Provide inputs exactly as labeled lines:
 
 ## Output JSON Schema (structure)
 
-The output must be a single JSON object with the following fields and constraints:
-
-```
-{
-  "correctionType": "factual|navigation|outdated",
-  "confidence": 0-100,
-  "originalQuestion": "string",
-  "botResponse": "string",
-  "correction": "string",
-  "reason": "string"
-}
-```
+- Produce a single JSON object using exactly these fields: `correctionType`, `confidence`, `originalQuestion`, `botResponse`, `correction`, `reason`.
+- `correctionType`: one of `factual`, `navigation`, `outdated`.
+- `confidence`: integer from 0 to 100 (inclusive).
+- `originalQuestion`, `botResponse`, `correction`, `reason`: strings (empty string allowed when information is missing).
+- No additional fields are allowed.
+- Canonical schema for validation is defined in `docs/prompts/correction-classification/schema.json`. This section is descriptive only and must not be copied verbatim as output.
 
 ## Instructions
 
@@ -40,6 +41,8 @@ The output must be a single JSON object with the following fields and constraint
 - confidence is an integer from 0 to 100 indicating how certain you are in the classification.
 - Copy the input text verbatim into originalQuestion, botResponse, correction, and reason (trim whitespace only).
 - Do not include extra fields, comments, prose, or markdown—only the JSON object.
+- Return raw JSON only (no Markdown, no code fences/backticks).
+- When copying fields from the input, exclude the labels; copy only the text after the colon for each labeled line.
 - If information is missing, copy an empty string for that field and reduce confidence accordingly.
 
 ## Few‑shot Examples
