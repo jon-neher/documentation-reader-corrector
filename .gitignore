@@ -2,6 +2,9 @@
 node_modules/
 npm-debug.log*
 
+# Build artifacts
+dist/
+
 # Env files (do not commit secrets)
 .env
 .env.*
@@ -11,3 +14,4 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+.cache/

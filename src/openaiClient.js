@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { OpenAIRateLimiter } from "../dist/index.js";
 
 let cachedClient = null;
 
@@ -28,18 +29,19 @@ export function getOpenAIClient() {
 */
 export async function testConnection() {
   // Let missing-API-key errors surface directly without the "API connection failed:" prefix.
-  const openai = getOpenAIClient();
+  // Trigger API key validation; throws if missing
+  getOpenAIClient();
+  const limiter = new OpenAIRateLimiter(50, 100);
 
   try {
-    await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: "test" }],
-      max_tokens: 1,
-    });
+    await limiter.makeRequest(
+      [{ role: "user", content: "test" }],
+      { model: "gpt-4o-mini", maxTokens: 1, temperature: 0 }
+    );
     return true;
   } catch (error) {
     const message = error && typeof error === "object" && "message" in error ? error.message : String(error);
-    throw new Error(`API connection failed: ${message}`);
+    throw new Error(`API connection failed: ${message}`, { cause: error });
   }
 }
 
