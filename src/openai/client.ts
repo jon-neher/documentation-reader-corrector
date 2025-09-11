@@ -33,9 +33,9 @@ export class OpenAIClient {
   }
 
   async chat(prompt: string | ChatMessage[], options: MakeRequestOptions = {}): Promise<OpenAIResponse> {
-    const messages: ChatMessage[] = Array.isArray(prompt)
-      ? prompt
-      : [{ role: 'user', content: String(prompt) }];
+    // Honor `options.messages` when provided; otherwise derive from `prompt`.
+    const messages: ChatMessage[] =
+      options.messages ?? (Array.isArray(prompt) ? prompt : [{ role: 'user', content: String(prompt) }]);
 
     const { model = process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature = 0.2, maxTokens, timeoutMs, extra } =
       options;

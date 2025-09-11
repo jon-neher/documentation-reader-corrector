@@ -58,8 +58,33 @@ class FileStorage implements Storage {
     }
   }
   private writeAll(data: Record<string, number>): void {
+    // Ensure target directory exists
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify(data, null, 2), 'utf8');
+    // Perform an atomic write: write to a temp file in the same directory,
+    // then rename over the destination. This avoids corruption on crashes
+    // and minimizes torn writes when multiple writers are present.
+    const dir = path.dirname(this.file);
+    const base = path.basename(this.file);
+    const tmp = path.join(dir, `.${base}.${process.pid}.${Date.now()}.tmp`);
+    const json = JSON.stringify(data, null, 2);
+    try {
+      fs.writeFileSync(tmp, json, 'utf8');
+      try {
+        fs.renameSync(tmp, this.file);
+      } catch (err: any) {
+        // On Windows, rename cannot replace an existing file. Fall back to
+        // unlinking first, then renaming. Keep POSIX fast‑path above.
+        if (process.platform === 'win32' && (err?.code === 'EEXIST' || err?.code === 'EPERM')) {
+          try { fs.rmSync(this.file, { force: true }); } catch {}
+          fs.renameSync(tmp, this.file);
+        } else {
+          throw err;
+        }
+      }
+    } finally {
+      // Ensure no temp file lingers on failure
+      try { fs.rmSync(tmp, { force: true }); } catch {}
+    }
   }
   load(monthKey: string): number | undefined {
     const all = this.readAll();
@@ -147,25 +172,40 @@ export class OpenAIRateLimiter {
   }
 
   async waitForRateLimit(): Promise<void> {
-    const now = Date.now();
-    // prune old timestamps
-    this.lastMinuteTimestamps = this.lastMinuteTimestamps.filter((t) => now - t < 60_000);
-    if (this.lastMinuteTimestamps.length < this.requestsPerMinute) {
-      this.lastMinuteTimestamps.push(now);
-      return;
-    }
+    // Iterative version to avoid building deep promise chains under saturation.
+    // Preserves semantics: prune, check capacity, push placeholder token for
+    // visibility while waiting, sleep, remove placeholder, and re-check.
+    // Loop until a slot is acquired, then record the timestamp and return.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      // Treat zero/negative RPM as "no limit" to avoid busy spinning on misconfiguration.
+      if (this.requestsPerMinute <= 0) {
+        // No rate limiting; avoid mutating tracking state to prevent unbounded growth.
+        return;
+      }
+      const now = Date.now();
+      // prune old timestamps
+      this.lastMinuteTimestamps = this.lastMinuteTimestamps.filter((t) => now - t < 60_000);
+      if (this.lastMinuteTimestamps.length < this.requestsPerMinute) {
+        this.lastMinuteTimestamps.push(now);
+        return;
+      }
 
-    const oldest = this.lastMinuteTimestamps[0];
-    const waitMs = Math.max(0, 60_000 - (now - oldest));
-    // track a placeholder in the queue for visibility
-    const token = { at: now, waitMs };
-    this.requestQueue.push(token);
-    logger.debug('Rate limit reached; waiting', { waitMs, queueSize: this.requestQueue.length });
-    await sleep(waitMs);
-    // remove placeholder when proceeding
-    this.requestQueue.shift();
-    // recurse to ensure slot actually available after sleep (concurrent callers)
-    return this.waitForRateLimit();
+      const oldest = this.lastMinuteTimestamps[0];
+      const waitMs = Math.max(0, 60_000 - (now - oldest));
+      // track a placeholder in the queue for visibility
+      const token = { at: now, waitMs } as const;
+      this.requestQueue.push(token);
+      logger.debug('Rate limit reached; waiting', { waitMs, queueSize: this.requestQueue.length });
+      try {
+        await sleep(waitMs);
+      } finally {
+        // remove the specific placeholder when proceeding (avoid removing another caller's token)
+        const idx = this.requestQueue.indexOf(token);
+        if (idx >= 0) this.requestQueue.splice(idx, 1);
+      }
+      // continue loop to re-check capacity
+    }
   }
 
   async retryWithBackoff(
@@ -249,7 +289,7 @@ export class OpenAIRateLimiter {
     if (status === 400) return new InvalidRequestError(message);
     if (status === 429) {
       const retryAfterHeader = any?.response?.headers?.get?.('retry-after');
-      const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
+      const retryAfterMs = parseRetryAfter(retryAfterHeader);
       return new RateLimitError(message, retryAfterMs);
     }
     if (status && status >= 500) return new ServerError(status, message);
