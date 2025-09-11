@@ -1,9 +1,9 @@
 import { OpenAIClient } from './client.js';
 import type { MakeRequestOptions, OpenAIResponse } from './client.js';
 import { estimateCostUSD } from './pricing.js';
-import { logger } from './logger.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { logger } from './logger.js';
 import {
   BudgetExceededError,
   InvalidApiKeyError,
@@ -223,7 +223,7 @@ export class OpenAIRateLimiter {
     const code = any?.code || any?.error?.code;
     const name = any?.name;
     const retryAfterHeader = any?.response?.headers?.get?.('retry-after');
-    const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : undefined;
+    const retryAfterMs = parseRetryAfter(retryAfterHeader);
 
     if (status === 429) return { shouldRetry: true, reason: 'rate_limit', retryAfterMs };
     if (status && status >= 500) return { shouldRetry: true, reason: 'server_error' };
@@ -276,6 +276,21 @@ export class OpenAIRateLimiter {
       throw err; // normalization handled by caller
     }
   }
+
+  // --- helpers ---
+}
+
+function parseRetryAfter(retryAfter: string | null | undefined): number | undefined {
+  if (!retryAfter) return undefined;
+  // If it's a number, spec says it's seconds
+  const seconds = Number(retryAfter);
+  if (!Number.isNaN(seconds)) return Math.max(0, seconds * 1000);
+  // Otherwise, it may be an HTTP-date
+  const dateMs = Date.parse(retryAfter);
+  if (!Number.isNaN(dateMs)) {
+    return Math.max(0, dateMs - Date.now());
+  }
+  return undefined;
 }
 
 export default OpenAIRateLimiter;
