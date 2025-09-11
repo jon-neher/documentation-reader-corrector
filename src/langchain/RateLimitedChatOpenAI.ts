@@ -80,18 +80,28 @@ export function withOpenAIRateLimit<TIn = unknown, TOut = unknown>(
   const logCost = new RunnableLambda<TOut, TOut>({
     func: async (output) => {
       try {
-        const { model, promptTokens, completionTokens } = extractModelAndUsage(output, opts.modelHint);
+        const { model, promptTokens, completionTokens, totalTokens } = extractModelAndUsage(
+          output,
+          opts.modelHint
+        );
+
         if (model && typeof promptTokens === 'number' && typeof completionTokens === 'number') {
           const cost = estimateCostUSD({ model, promptTokens, completionTokens });
-          logger.info('LangChain OpenAI call success', {
+          const meta: Record<string, unknown> = {
             model,
             promptTokens,
             completionTokens,
             costUSD: cost,
-          });
-        } else {
-          logger.debug('LangChain OpenAI: token usage not available; cost not logged', {
+          };
+          if (typeof totalTokens === 'number') meta.totalTokens = totalTokens;
+          logger.info('LangChain OpenAI call success', meta);
+        } else if ((output as any)?.response_metadata || (output as any)?.usage_metadata) {
+          // Suppress debug spam when there is no usage metadata at all (common during streaming).
+          logger.debug('LangChain OpenAI: usage present but incomplete; cost not logged', {
             model: model ?? opts.modelHint,
+            promptTokens,
+            completionTokens,
+            totalTokens,
           });
         }
       } catch (err) {
