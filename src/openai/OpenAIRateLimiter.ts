@@ -2,6 +2,8 @@ import { OpenAIClient } from './client.js';
 import type { MakeRequestOptions, OpenAIResponse } from './client.js';
 import { estimateCostUSD } from './pricing.js';
 import { logger } from './logger.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   BudgetExceededError,
   InvalidApiKeyError,
@@ -39,7 +41,6 @@ class FileStorage implements Storage {
   }
   private readAll(): Record<string, number> {
     try {
-      const fs = require('fs');
       if (!fs.existsSync(this.file)) return {};
       const raw = fs.readFileSync(this.file, 'utf8');
       return JSON.parse(raw || '{}');
@@ -48,8 +49,6 @@ class FileStorage implements Storage {
     }
   }
   private writeAll(data: Record<string, number>): void {
-    const fs = require('fs');
-    const path = require('path');
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     fs.writeFileSync(this.file, JSON.stringify(data, null, 2), 'utf8');
   }
