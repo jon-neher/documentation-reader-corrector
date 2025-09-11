@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { OpenAIRateLimiter } from "../dist/openai/OpenAIRateLimiter.js";
+import { OpenAIRateLimiter } from "../dist/index.js";
 
 let cachedClient = null;
 
