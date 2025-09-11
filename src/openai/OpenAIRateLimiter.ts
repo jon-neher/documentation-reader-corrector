@@ -156,6 +156,29 @@ export class OpenAIRateLimiter {
     }
   }
 
+  /**
+   * Public hook for external callers (e.g., LangChain adapter) to record usage-based cost
+   * against the monthly budget. Safe to call multiple times.
+   */
+  recordUsage(model: string, promptTokens: number, completionTokens: number): void {
+    try {
+      const safePrompt = Number.isFinite(promptTokens) ? Math.max(0, Math.floor(promptTokens)) : 0;
+      const safeCompletion = Number.isFinite(completionTokens) ? Math.max(0, Math.floor(completionTokens)) : 0;
+      const cost = estimateCostUSD({ model, promptTokens: safePrompt, completionTokens: safeCompletion });
+      this.recordSpend(cost);
+      logger.info('Recorded external OpenAI usage', {
+        model,
+        promptTokens: safePrompt,
+        completionTokens: safeCompletion,
+        costUSD: cost,
+        monthlySpend: this.monthlySpend,
+        monthlyBudget: this.monthlyBudget,
+      });
+    } catch (err) {
+      logger.warn('Failed to record external usage', { err: (err as Error).message });
+    }
+  }
+
   async makeRequest(prompt: string | MakeRequestOptions['messages'], options: MakeRequestOptions = {}): Promise<OpenAIResponse> {
     this.rotateMonthIfNeeded();
     if (this.monthlySpend >= this.monthlyBudget) {
