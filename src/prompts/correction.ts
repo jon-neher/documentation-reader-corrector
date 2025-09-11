@@ -3,7 +3,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 /**
 * Correction analysis prompt template.
 *
-* This module represents the structured prompt management system (JON-46).
+* This module centralizes the structured prompt for correction analysis.
 * In the future, templates can be versioned or dynamically loaded. For now,
 * we export a stable factory to retrieve the prompt used by the chain.
 */

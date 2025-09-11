@@ -23,7 +23,7 @@ export const CorrectionAnalysisSchema = z.object({
 export type CorrectionClassification = z.infer<typeof CorrectionClassificationEnum>;
 export type CorrectionAnalysis = z.infer<typeof CorrectionAnalysisSchema>;
 
-// Input required by the correction analysis prompt. This mirrors the JON-43 POC.
+// Input required by the correction analysis prompt. Mirrored from the initial POC shape.
 export type CorrectionAnalysisInput = {
   originalQuestion: string;
   botResponse: string;
