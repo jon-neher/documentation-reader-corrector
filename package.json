@@ -1,0 +1,13 @@
+{
+  "name": "documentation-reader-corrector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "openai:test": "node -e \"import('./src/openaiClient.js').then(m => m.testConnection()).then(()=>{console.log('Connection test succeeded')}).catch(e=>{console.error(e.message); process.exit(1)})\""
+  },
+  "dependencies": {
+    "openai": "^5.20.1"
+  }
+}

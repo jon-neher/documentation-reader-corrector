@@ -1,0 +1,13 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Env files (do not commit secrets)
+.env
+.env.*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
