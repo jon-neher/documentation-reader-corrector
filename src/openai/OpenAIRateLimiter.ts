@@ -46,7 +46,14 @@ class FileStorage implements Storage {
       if (!fs.existsSync(this.file)) return {};
       const raw = fs.readFileSync(this.file, 'utf8');
       return JSON.parse(raw || '{}');
-    } catch {
+    } catch (err) {
+      // Log (but do not throw) to avoid silently swallowing persistence issues
+      // that could mask permission problems or file corruption. Keep behavior
+      // unchanged by returning an empty object when read/parse fails.
+      logger.warn('Failed to read/parse budget file', {
+        file: this.file,
+        err: (err as Error).message,
+      });
       return {};
     }
   }
