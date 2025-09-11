@@ -29,7 +29,8 @@ export function getOpenAIClient() {
 */
 export async function testConnection() {
   // Let missing-API-key errors surface directly without the "API connection failed:" prefix.
-  const openai = getOpenAIClient();
+  // Trigger API key validation; throws if missing
+  getOpenAIClient();
   const limiter = new OpenAIRateLimiter(50, 100);
 
   try {
@@ -40,7 +41,7 @@ export async function testConnection() {
     return true;
   } catch (error) {
     const message = error && typeof error === "object" && "message" in error ? error.message : String(error);
-    throw new Error(`API connection failed: ${message}`);
+    throw new Error(`API connection failed: ${message}`, { cause: error });
   }
 }
 
