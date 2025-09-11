@@ -19,9 +19,11 @@ type Retryable = {
   retryAfterMs?: number;
 };
 
+// Simple synchronous storage for monthly spend persistence. Intentionally
+// synchronous to match current in-process use cases and avoid implicit async.
 type Storage = {
-  load(monthKey: string): Promise<number | undefined> | number | undefined;
-  save(monthKey: string, spend: number): Promise<void> | void;
+  load(monthKey: string): number | undefined;
+  save(monthKey: string, spend: number): void;
 };
 
 class InMemoryStorage implements Storage {
