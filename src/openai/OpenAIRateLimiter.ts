@@ -172,7 +172,7 @@ export class OpenAIRateLimiter {
     prompt: string | MakeRequestOptions['messages'],
     options: MakeRequestOptions
   ): Promise<OpenAIResponse> {
-    const maxAttempts = Math.max(1, Number((options as any).maxRetries ?? this.maxRetries));
+    const maxAttempts = Math.max(1, Number(options.maxRetries ?? this.maxRetries));
     let attempt = 0;
     let lastErr: unknown;
 

@@ -11,6 +11,9 @@ export type MakeRequestOptions = {
   messages?: ChatMessage[];
   // Extra options forwarded as-is in case JON-18 exposes more knobs
   extra?: Record<string, unknown>;
+  // Per-call override: maximum total attempts (initial try + retries) for transient failures; overrides
+  // limiter default/env for this call. Example: 3 => up to 3 total attempts.
+  maxRetries?: number;
 };
 
 export type OpenAIResponse = {
