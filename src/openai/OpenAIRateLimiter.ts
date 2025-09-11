@@ -1,5 +1,5 @@
 import { OpenAIClient } from './client.js';
-import type { MakeRequestOptions, OpenAIResponse } from './client.js';
+import type { MakeRequestOptions, OpenAIResponse, ChatMessage } from './client.js';
 import { estimateCostUSD } from './pricing.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -252,10 +252,16 @@ export class OpenAIRateLimiter {
           retryAfterMs,
         });
         if (!shouldRetry || attempt >= maxAttempts) break;
-        const base = retryAfterMs ?? 500 * Math.pow(2, attempt - 1);
-        const jitter = Math.floor(Math.random() * 100);
-        const delay = Math.min(15_000, base + jitter);
-        await sleep(delay);
+        // Honor server-provided Retry-After exactly (no jitter, no cap).
+        if (typeof retryAfterMs === 'number') {
+          await sleep(retryAfterMs);
+        } else {
+          // Exponential backoff fallback with jitter and a max cap.
+          const base = 500 * Math.pow(2, attempt - 1);
+          const jitter = Math.floor(Math.random() * 100);
+          const delay = Math.min(15_000, base + jitter);
+          await sleep(delay);
+        }
       }
     }
 
@@ -273,7 +279,7 @@ export class OpenAIRateLimiter {
     const retryAfterMs = parseRetryAfter(retryAfterHeader);
 
     if (status === 429) return { shouldRetry: true, reason: 'rate_limit', retryAfterMs };
-    if (status && status >= 500) return { shouldRetry: true, reason: 'server_error' };
+    if (status && status >= 500) return { shouldRetry: true, reason: 'server_error', retryAfterMs };
     if (name === 'AbortError' || code === 'ETIMEDOUT' || code === 'ECONNRESET')
       return { shouldRetry: true, reason: 'network_timeout' };
 
@@ -304,7 +310,7 @@ export class OpenAIRateLimiter {
     options: MakeRequestOptions
   ): Promise<OpenAIResponse> {
     const preview = Array.isArray(prompt)
-      ? (prompt as any[])
+      ? (prompt as ChatMessage[])
           .map((m) => (typeof m?.content === 'string' ? m.content : ''))
           .join(' ')
           .slice(0, 120)
@@ -317,7 +323,10 @@ export class OpenAIRateLimiter {
     });
 
     try {
-      const resp = await this.client.chat(Array.isArray(prompt) ? (prompt as any) : String(prompt), options);
+      const resp = await this.client.chat(
+        Array.isArray(prompt) ? (prompt as ChatMessage[]) : String(prompt),
+        options
+      );
       return resp;
     } catch (err) {
       throw err; // normalization handled by caller
