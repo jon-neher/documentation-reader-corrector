@@ -106,9 +106,9 @@ export function withOpenAIRateLimit<TIn = unknown, TOut = unknown>(
         }
       } catch (err) {
         // Never fail the chain due to logging issues; keep this side effect best-effort.
-        logger.warn('LangChain OpenAI: failed to compute/log cost', {
-          err: (err as Error)?.message,
-        });
+        const e = err as unknown;
+        const payload = e instanceof Error ? { message: e.message, stack: e.stack } : { error: e };
+        logger.warn('LangChain OpenAI: failed to compute/log cost', payload);
       }
       return output;
     },
