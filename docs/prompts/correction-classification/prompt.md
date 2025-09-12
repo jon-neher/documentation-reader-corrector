@@ -15,6 +15,7 @@ You are analyzing support bot corrections. Given a correction context, classify 
 - If the UI location/path changed but the feature still exists, choose `navigation`.
 - If the referenced page/feature was removed or deprecated, choose `outdated`.
 - If the claim was never true (independent of UI location), choose `factual`.
+- If the capability/content claim is incorrect and the feature still exists (or the claim was never true), classify as `factual` even if the path is also wrong; use `navigation` only when the capability is correct but the path is wrong. If the feature was removed or deprecated, classify as `outdated`.
 - If multiple seem to apply, prefer `outdated` over `factual`, and prefer `navigation` over `outdated` when the only change is location.
 
 ## Input Format
@@ -42,10 +43,12 @@ Provide inputs exactly as labeled lines:
 - Copy the input text verbatim into originalQuestion, botResponse, correction, and reason (trim whitespace only).
 - Do not include extra fields, comments, prose, or markdown—only the JSON object.
 - Return raw JSON only (no Markdown, no code fences/backticks).
-- When copying fields from the input, exclude the labels; copy only the text after the colon for each labeled line.
+- When copying fields from the input, exclude the labels; copy only the text after the first colon (:) for each labeled line. Preserve internal whitespace and any additional colons within the value; trim leading/trailing whitespace only.
 - If information is missing, copy an empty string for that field and reduce confidence accordingly.
 
 ## Few‑shot Examples
+
+Note: The JSON in examples is shown inside code fences for readability only. Your output must be a single raw JSON object with no Markdown and no code fences/backticks.
 
 ### Example 1 — factual
 
