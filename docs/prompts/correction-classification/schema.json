@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/jon-neher/documentation-reader-corrector/main/docs/prompts/correction-classification/schema.json",
+  "$id": "https://raw.githubusercontent.com/jon-neher/documentation-reader-corrector/master/docs/prompts/correction-classification/schema.json",
   "title": "CorrectionClassification",
   "type": "object",
   "additionalProperties": false,

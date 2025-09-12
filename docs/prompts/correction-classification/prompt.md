@@ -29,11 +29,11 @@ Provide inputs exactly as labeled lines:
 
 ## Output JSON Schema (structure)
 
-- Produce a single JSON object using these fields: `correctionType`, `confidence`, `originalQuestion`, `botResponse`, `correction`, `reason`. You may optionally include `schemaVersion` with value "1".
+- Produce a single JSON object with exactly these fields: `correctionType`, `confidence`, `originalQuestion`, `botResponse`, `correction`, `reason`, and optionally `schemaVersion` (value "1" only).
 - `correctionType`: one of `factual`, `navigation`, `outdated`.
 - `confidence`: integer from 0 to 100 (inclusive).
 - `originalQuestion`, `botResponse`, `correction`, `reason`: strings (empty string allowed when information is missing).
-- No additional fields are allowed.
+- No other fields are allowed.
 - Canonical schema for validation is defined in `docs/prompts/correction-classification/schema.json`. This section is descriptive only and must not be copied verbatim as output.
 
 ## Instructions
