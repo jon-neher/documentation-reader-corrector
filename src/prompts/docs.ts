@@ -17,6 +17,13 @@ export const TicketSchema = z.object({
 });
 export type Ticket = z.infer<typeof TicketSchema>;
 
+export type TicketInput = {
+  context: string;
+  repoDetails?: string;
+  targetAudience?: string;
+  format_instructions?: string | null;
+};
+
 const ticketV1Template = ChatPromptTemplate.fromMessages([
   [
     'system',
@@ -54,8 +61,8 @@ export const ticketV1: PromptSpec<typeof TicketSchema> = createPromptSpec(
 
 export function buildTicketChain(
   model: BaseLanguageModelInterface,
-): Runnable<Record<string, unknown>, Ticket> {
-  return buildStructuredChain(ticketV1, model);
+): Runnable<TicketInput, Ticket> {
+  return buildStructuredChain<typeof TicketSchema, TicketInput>(ticketV1, model);
 }
 
 // -------------------------
@@ -76,6 +83,13 @@ export const DocUpdatePlanSchema = z.object({
 });
 
 export type DocUpdatePlan = z.infer<typeof DocUpdatePlanSchema>;
+
+export type DocUpdateInput = {
+  changeDescription: string;
+  context: string;
+  repoDetails?: string;
+  format_instructions?: string | null;
+};
 
 const docUpdateFewShotJson = JSON.stringify(
   {
@@ -142,6 +156,9 @@ export const docUpdateV1: PromptSpec<typeof DocUpdatePlanSchema> = createPromptS
 
 export function buildDocUpdateChain(
   model: BaseLanguageModelInterface,
-): Runnable<Record<string, unknown>, DocUpdatePlan> {
-  return buildStructuredChain(docUpdateV1, model);
+): Runnable<DocUpdateInput, DocUpdatePlan> {
+  return buildStructuredChain<typeof DocUpdatePlanSchema, DocUpdateInput>(
+    docUpdateV1,
+    model,
+  );
 }

@@ -76,10 +76,10 @@ export function makeFormatInjector<S extends z.ZodTypeAny>(spec: PromptSpec<S>) 
 * Build a structured chain: injector → template → model → parser, producing
 * a Runnable from generic input into the Zod-inferred output type.
 */
-export function buildStructuredChain<S extends z.ZodTypeAny>(
-  spec: PromptSpec<S>,
-  model: BaseLanguageModelInterface,
-): Runnable<Record<string, unknown>, z.infer<S>> {
+export function buildStructuredChain<
+  S extends z.ZodTypeAny,
+  Input extends Record<string, unknown> = Record<string, unknown>,
+>(spec: PromptSpec<S>, model: BaseLanguageModelInterface): Runnable<Input, z.infer<S>> {
   return makeFormatInjector(spec).pipe(spec.template).pipe(model).pipe(spec.parser);
 }
 

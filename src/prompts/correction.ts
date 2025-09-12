@@ -27,6 +27,16 @@ export const CorrectionAnalysisSchema = z.object({
 
 export type CorrectionAnalysis = z.infer<typeof CorrectionAnalysisSchema>;
 
+// Explicit input type for v1 template variables (+ optional format_instructions)
+export type CorrectionAnalysisInput = {
+  originalQuestion: string;
+  botResponse: string;
+  wrong: string;
+  right: string;
+  reason: string;
+  format_instructions?: string | null;
+};
+
 // -------------------------
 // Template (v1) with few-shot
 // -------------------------
@@ -105,6 +115,9 @@ export const correctionAnalysisV1: PromptSpec<typeof CorrectionAnalysisSchema> =
 /** Build a model → parser pipeline for correction analysis v1. */
 export function buildCorrectionAnalysisChain(
   model: BaseLanguageModelInterface,
-): Runnable<Record<string, unknown>, CorrectionAnalysis> {
-  return buildStructuredChain(correctionAnalysisV1, model);
+): Runnable<CorrectionAnalysisInput, CorrectionAnalysis> {
+  return buildStructuredChain<typeof CorrectionAnalysisSchema, CorrectionAnalysisInput>(
+    correctionAnalysisV1,
+    model,
+  );
 }
