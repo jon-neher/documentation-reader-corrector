@@ -51,19 +51,23 @@ export function createPromptSpec<S extends z.ZodTypeAny>(
 }
 
 /**
-* Create a Runnable that injects `format_instructions` into the input when
-* missing, using the parser derived from the given spec.
+* Create a Runnable that injects `format_instructions` into the input only
+* when the field is not present (i.e., `undefined`), using the parser derived
+* from the given spec.
 *
 * Behavior:
-* - If the caller already provided `format_instructions`, it is preserved.
-* - Otherwise, we add `format_instructions: spec.getFormatInstructions()`.
+* - If the caller provided any value (including `null`), preserve it as-is.
+* - If `format_instructions` is `undefined`, inject `spec.getFormatInstructions()`.
 */
 export function makeFormatInjector<S extends z.ZodTypeAny>(spec: PromptSpec<S>) {
   return RunnableLambda.from(
     (input: Record<string, unknown> & { format_instructions?: string | null }) => ({
       ...input,
-      // Preserve an explicit caller-provided value if present
-      format_instructions: input.format_instructions ?? spec.getFormatInstructions(),
+      // Inject only when `format_instructions` is undefined; preserve null/strings
+      format_instructions:
+        input.format_instructions === undefined
+          ? spec.getFormatInstructions()
+          : input.format_instructions,
     }),
   );
 }

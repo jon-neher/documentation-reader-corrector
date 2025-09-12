@@ -63,9 +63,9 @@ See `examples/langchain/poc_correction_analysis.mjs` for a runnable example that
 ## Adding a new template
 
 1. Create a new module in `src/prompts/` or extend an existing one.
-2. Define a Zod schema and derive a parser with `withFormatInstructions()`.
-3. Create a `ChatPromptTemplate` with variables and few-shot examples.
-4. Export a `PromptSpec` and optional `build*Chain(model)` helper.
+2. Define a Zod schema.
+3. Export a `PromptSpec` via `createPromptSpec(meta, template, schema)` — this derives the `StructuredOutputParser` from the schema.
+4. If you want a pre‑partialed template for manual composition, optionally use `withFormatInstructions(spec.template, spec.schema)` at call sites or in a lazy initializer. Builders already auto‑inject `format_instructions`.
 5. Update this README with the new export.
 
 ## Parameters and partials

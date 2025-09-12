@@ -7,7 +7,7 @@ import { StructuredOutputParser } from '@langchain/core/output_parsers';
 */
 export type PromptVersionMeta = {
   id: string; // stable identifier, e.g., "correction.analysis"
-  version: `${number}` | `v${number}`; // simple numeric or v-prefixed version
+  version: `v${number}`; // standardized v-prefixed numeric version (e.g., "v1")
   description?: string;
   updatedAt: string; // ISO date string for human traceability
   /**
