@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
-import { Runnable, RunnableLambda } from '@langchain/core/runnables';
+import { Runnable } from '@langchain/core/runnables';
 import type { PromptSpec } from './types.js';
-import { createPromptSpec } from './utils.js';
+import { buildStructuredChain, createPromptSpec } from './utils.js';
 
 // -------------------------
 // Cluster corrections into themes & summarize
@@ -60,10 +60,5 @@ export const patternSummaryV1: PromptSpec<typeof PatternSummarySchema> = createP
 export function buildPatternSummaryChain(
   model: BaseLanguageModelInterface,
 ): Runnable<Record<string, unknown>, PatternSummary> {
-  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
-    ...input,
-    format_instructions:
-      (input as any).format_instructions ?? patternSummaryV1.getFormatInstructions(),
-  }));
-  return addFormat.pipe(patternSummaryV1.template).pipe(model).pipe(patternSummaryV1.parser);
+  return buildStructuredChain(patternSummaryV1, model);
 }

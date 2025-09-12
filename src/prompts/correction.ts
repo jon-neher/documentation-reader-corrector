@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
-import { Runnable, RunnableLambda } from '@langchain/core/runnables';
+import { Runnable } from '@langchain/core/runnables';
 import type { PromptSpec } from './types.js';
-import { createPromptSpec } from './utils.js';
+import { buildStructuredChain, createPromptSpec } from './utils.js';
 
 // -------------------------
 // Zod schema (structured output)
@@ -105,15 +105,6 @@ export const correctionAnalysisV1: PromptSpec<typeof CorrectionAnalysisSchema> =
 /** Build a model → parser pipeline for correction analysis v1. */
 export function buildCorrectionAnalysisChain(
   model: BaseLanguageModelInterface,
-): Runnable<{ [k: string]: unknown }, CorrectionAnalysis> {
-  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
-    ...input,
-    // Allow override, but inject default if missing
-    format_instructions:
-      (input as any).format_instructions ?? correctionAnalysisV1.getFormatInstructions(),
-  }));
-  return addFormat
-    .pipe(correctionAnalysisV1.template)
-    .pipe(model)
-    .pipe(correctionAnalysisV1.parser);
+): Runnable<Record<string, unknown>, CorrectionAnalysis> {
+  return buildStructuredChain(correctionAnalysisV1, model);
 }

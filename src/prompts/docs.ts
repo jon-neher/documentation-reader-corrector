@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
-import { Runnable, RunnableLambda } from '@langchain/core/runnables';
+import { Runnable } from '@langchain/core/runnables';
 import type { PromptSpec } from './types.js';
-import { createPromptSpec } from './utils.js';
+import { buildStructuredChain, createPromptSpec } from './utils.js';
 
 // -------------------------
 // Ticket Generation
@@ -55,11 +55,7 @@ export const ticketV1: PromptSpec<typeof TicketSchema> = createPromptSpec(
 export function buildTicketChain(
   model: BaseLanguageModelInterface,
 ): Runnable<Record<string, unknown>, Ticket> {
-  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
-    ...input,
-    format_instructions: (input as any).format_instructions ?? ticketV1.getFormatInstructions(),
-  }));
-  return addFormat.pipe(ticketV1.template).pipe(model).pipe(ticketV1.parser);
+  return buildStructuredChain(ticketV1, model);
 }
 
 // -------------------------
@@ -147,9 +143,5 @@ export const docUpdateV1: PromptSpec<typeof DocUpdatePlanSchema> = createPromptS
 export function buildDocUpdateChain(
   model: BaseLanguageModelInterface,
 ): Runnable<Record<string, unknown>, DocUpdatePlan> {
-  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
-    ...input,
-    format_instructions: (input as any).format_instructions ?? docUpdateV1.getFormatInstructions(),
-  }));
-  return addFormat.pipe(docUpdateV1.template).pipe(model).pipe(docUpdateV1.parser);
+  return buildStructuredChain(docUpdateV1, model);
 }

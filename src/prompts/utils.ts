@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import type { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { PromptSpec, PromptVersionMeta } from './types.js';
+import { Runnable, RunnableLambda } from '@langchain/core/runnables';
+import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
 
 /** Create a parser and its format instructions from a Zod schema. */
 export function buildParser<S extends z.ZodTypeAny>(schema: S) {
@@ -46,5 +48,34 @@ export function createPromptSpec<S extends z.ZodTypeAny>(
     parser,
     getFormatInstructions: () => parser.getFormatInstructions(),
   } as const;
+}
+
+/**
+* Create a Runnable that injects `format_instructions` into the input when
+* missing, using the parser derived from the given spec.
+*
+* Behavior:
+* - If the caller already provided `format_instructions`, it is preserved.
+* - Otherwise, we add `format_instructions: spec.getFormatInstructions()`.
+*/
+export function makeFormatInjector<S extends z.ZodTypeAny>(spec: PromptSpec<S>) {
+  return RunnableLambda.from(
+    (input: Record<string, unknown> & { format_instructions?: string | null }) => ({
+      ...input,
+      // Preserve an explicit caller-provided value if present
+      format_instructions: input.format_instructions ?? spec.getFormatInstructions(),
+    }),
+  );
+}
+
+/**
+* Build a structured chain: injector → template → model → parser, producing
+* a Runnable from generic input into the Zod-inferred output type.
+*/
+export function buildStructuredChain<S extends z.ZodTypeAny>(
+  spec: PromptSpec<S>,
+  model: BaseLanguageModelInterface,
+): Runnable<Record<string, unknown>, z.infer<S>> {
+  return makeFormatInjector(spec).pipe(spec.template).pipe(model).pipe(spec.parser);
 }
 
