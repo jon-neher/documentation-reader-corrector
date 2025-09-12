@@ -31,6 +31,11 @@ type AIMessageLike = {
   response_metadata?: ResponseMetadataLike | null;
 };
 
+// Narrower probe that avoids `any` casts when checking for metadata presence
+function hasAnyUsageOrResponseMetadata(x: unknown): x is AIMessageLike {
+  return !!x && typeof x === 'object' && ('response_metadata' in x || 'usage_metadata' in x);
+}
+
 function extractModelAndUsage(
   output: unknown,
   fallbackModel?: string
@@ -95,7 +100,12 @@ export function withOpenAIRateLimit<TIn = unknown, TOut = unknown>(
           };
           if (typeof totalTokens === 'number') meta.totalTokens = totalTokens;
           logger.info('LangChain OpenAI call success', meta);
-        } else if ((output as any)?.response_metadata || (output as any)?.usage_metadata) {
+        } else if (
+          hasAnyUsageOrResponseMetadata(output) &&
+          (typeof promptTokens === 'number' ||
+            typeof completionTokens === 'number' ||
+            typeof totalTokens === 'number')
+        ) {
           // Suppress debug spam when there is no usage metadata at all (common during streaming).
           logger.debug('LangChain OpenAI: usage present but incomplete; cost not logged', {
             model: model ?? opts.modelHint,
