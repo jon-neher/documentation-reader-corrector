@@ -27,7 +27,11 @@ Most call sites will either compose chains directly or use the `build*Chain` hel
 
 ```ts
 import { ChatOpenAI } from '@langchain/openai';
-import { buildCorrectionAnalysisChain, correctionAnalysisV1 } from '../src/prompts/correction';
+// Package consumers: import from the public API (package barrel)
+import {
+  buildCorrectionAnalysisChain,
+  correctionAnalysisV1,
+} from 'documentation-reader-corrector';
 
 const model = new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0.2 });
 const chain = buildCorrectionAnalysisChain(model);
@@ -43,7 +47,14 @@ const result = await chain.invoke({
 });
 ```
 
-See `examples/langchain/poc_correction_analysis.mjs` for a runnable example that imports the compiled template from `dist/`.
+For local development in this repo (before publishing), mirror the example and import from the compiled barrel in `dist/`:
+
+```ts
+import { ChatOpenAI } from '@langchain/openai';
+import { buildCorrectionAnalysisChain, correctionAnalysisV1 } from '../../dist/index.js';
+```
+
+See `examples/langchain/poc_correction_analysis.mjs` for a runnable example that already uses `../../dist/index.js`.
 
 ## Versioning
 

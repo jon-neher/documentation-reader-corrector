@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
-import { Runnable } from '@langchain/core/runnables';
+import { Runnable, RunnableLambda } from '@langchain/core/runnables';
 import type { PromptSpec } from './types.js';
-import { withFormatInstructions } from './utils.js';
+import { createPromptSpec } from './utils.js';
 
 // -------------------------
 // Ticket Generation
@@ -40,27 +40,26 @@ const ticketV1Template = ChatPromptTemplate.fromMessages([
   ],
 ]);
 
-export const ticketV1: PromptSpec<typeof TicketSchema> = (await (async () => {
-  const { template, parser } = await withFormatInstructions(ticketV1Template, TicketSchema);
-  return {
-    meta: {
-      id: 'docs.ticket',
-      version: 'v1',
-      description: 'Generate a single Jira-style ticket from context with ACs and metadata.',
-      updatedAt: '2025-09-12',
-      tags: ['json', 'zod'],
-    },
-    template,
-    schema: TicketSchema,
-    parser,
-    getFormatInstructions: () => parser.getFormatInstructions(),
-  } as const;
-})());
+export const ticketV1: PromptSpec<typeof TicketSchema> = createPromptSpec(
+  {
+    id: 'docs.ticket',
+    version: 'v1',
+    description: 'Generate a single Jira-style ticket from context with ACs and metadata.',
+    updatedAt: '2025-09-12',
+    tags: ['json', 'zod'],
+  },
+  ticketV1Template,
+  TicketSchema,
+);
 
 export function buildTicketChain(
   model: BaseLanguageModelInterface,
 ): Runnable<Record<string, unknown>, Ticket> {
-  return ticketV1.template.pipe(model).pipe(ticketV1.parser);
+  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
+    ...input,
+    format_instructions: (input as any).format_instructions ?? ticketV1.getFormatInstructions(),
+  }));
+  return addFormat.pipe(ticketV1.template).pipe(model).pipe(ticketV1.parser);
 }
 
 // -------------------------
@@ -133,28 +132,24 @@ const docUpdateV1Template = ChatPromptTemplate.fromMessages([
   ],
 ]);
 
-export const docUpdateV1: PromptSpec<typeof DocUpdatePlanSchema> = (await (async () => {
-  const { template, parser } = await withFormatInstructions(
-    docUpdateV1Template,
-    DocUpdatePlanSchema,
-  );
-  return {
-    meta: {
-      id: 'docs.updatePlan',
-      version: 'v1',
-      description: 'Produce a file-path oriented documentation update plan with proposed edits.',
-      updatedAt: '2025-09-12',
-      tags: ['few-shot', 'json', 'zod'],
-    },
-    template,
-    schema: DocUpdatePlanSchema,
-    parser,
-    getFormatInstructions: () => parser.getFormatInstructions(),
-  } as const;
-})());
+export const docUpdateV1: PromptSpec<typeof DocUpdatePlanSchema> = createPromptSpec(
+  {
+    id: 'docs.updatePlan',
+    version: 'v1',
+    description: 'Produce a file-path oriented documentation update plan with proposed edits.',
+    updatedAt: '2025-09-12',
+    tags: ['few-shot', 'json', 'zod'],
+  },
+  docUpdateV1Template,
+  DocUpdatePlanSchema,
+);
 
 export function buildDocUpdateChain(
   model: BaseLanguageModelInterface,
 ): Runnable<Record<string, unknown>, DocUpdatePlan> {
-  return docUpdateV1.template.pipe(model).pipe(docUpdateV1.parser);
+  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
+    ...input,
+    format_instructions: (input as any).format_instructions ?? docUpdateV1.getFormatInstructions(),
+  }));
+  return addFormat.pipe(docUpdateV1.template).pipe(model).pipe(docUpdateV1.parser);
 }

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
-import { Runnable } from '@langchain/core/runnables';
+import { Runnable, RunnableLambda } from '@langchain/core/runnables';
 import type { PromptSpec } from './types.js';
-import { withFormatInstructions } from './utils.js';
+import { createPromptSpec } from './utils.js';
 
 // -------------------------
 // Zod schema (structured output)
@@ -89,30 +89,31 @@ const correctionAnalysisV1Template = ChatPromptTemplate.fromMessages([
 // -------------------------
 // Spec export
 // -------------------------
-export const correctionAnalysisV1: PromptSpec<typeof CorrectionAnalysisSchema> = (await (async () => {
-  const { template, parser } = await withFormatInstructions(
-    correctionAnalysisV1Template,
-    CorrectionAnalysisSchema,
-  );
-  return {
-    meta: {
-      id: 'correction.analysis',
-      version: 'v1',
-      description:
-        'Analyze a correction to a support bot answer and extract a structured classification with fields.',
-      updatedAt: '2025-09-12',
-      tags: ['few-shot', 'json', 'zod'],
-    },
-    template,
-    schema: CorrectionAnalysisSchema,
-    parser,
-    getFormatInstructions: () => parser.getFormatInstructions(),
-  } as const;
-})());
+export const correctionAnalysisV1: PromptSpec<typeof CorrectionAnalysisSchema> = createPromptSpec(
+  {
+    id: 'correction.analysis',
+    version: 'v1',
+    description:
+      'Analyze a correction to a support bot answer and extract a structured classification with fields.',
+    updatedAt: '2025-09-12',
+    tags: ['few-shot', 'json', 'zod'],
+  },
+  correctionAnalysisV1Template,
+  CorrectionAnalysisSchema,
+);
 
 /** Build a model → parser pipeline for correction analysis v1. */
 export function buildCorrectionAnalysisChain(
   model: BaseLanguageModelInterface,
 ): Runnable<{ [k: string]: unknown }, CorrectionAnalysis> {
-  return correctionAnalysisV1.template.pipe(model).pipe(correctionAnalysisV1.parser);
+  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
+    ...input,
+    // Allow override, but inject default if missing
+    format_instructions:
+      (input as any).format_instructions ?? correctionAnalysisV1.getFormatInstructions(),
+  }));
+  return addFormat
+    .pipe(correctionAnalysisV1.template)
+    .pipe(model)
+    .pipe(correctionAnalysisV1.parser);
 }

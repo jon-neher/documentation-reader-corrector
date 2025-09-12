@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base';
-import { Runnable } from '@langchain/core/runnables';
+import { Runnable, RunnableLambda } from '@langchain/core/runnables';
 import type { PromptSpec } from './types.js';
-import { withFormatInstructions } from './utils.js';
+import { createPromptSpec } from './utils.js';
 
 // -------------------------
 // Cluster corrections into themes & summarize
@@ -45,28 +45,25 @@ const patternV1Template = ChatPromptTemplate.fromMessages([
   ],
 ]);
 
-export const patternSummaryV1: PromptSpec<typeof PatternSummarySchema> = (await (async () => {
-  const { template, parser } = await withFormatInstructions(
-    patternV1Template,
-    PatternSummarySchema,
-  );
-  return {
-    meta: {
-      id: 'patterns.clusterAndSummarize',
-      version: 'v1',
-      description: 'Cluster a list of correction summaries and produce an executive summary.',
-      updatedAt: '2025-09-12',
-      tags: ['json', 'zod'],
-    },
-    template,
-    schema: PatternSummarySchema,
-    parser,
-    getFormatInstructions: () => parser.getFormatInstructions(),
-  } as const;
-})());
+export const patternSummaryV1: PromptSpec<typeof PatternSummarySchema> = createPromptSpec(
+  {
+    id: 'patterns.clusterAndSummarize',
+    version: 'v1',
+    description: 'Cluster a list of correction summaries and produce an executive summary.',
+    updatedAt: '2025-09-12',
+    tags: ['json', 'zod'],
+  },
+  patternV1Template,
+  PatternSummarySchema,
+);
 
 export function buildPatternSummaryChain(
   model: BaseLanguageModelInterface,
 ): Runnable<Record<string, unknown>, PatternSummary> {
-  return patternSummaryV1.template.pipe(model).pipe(patternSummaryV1.parser);
+  const addFormat = RunnableLambda.from((input: Record<string, unknown>) => ({
+    ...input,
+    format_instructions:
+      (input as any).format_instructions ?? patternSummaryV1.getFormatInstructions(),
+  }));
+  return addFormat.pipe(patternSummaryV1.template).pipe(model).pipe(patternSummaryV1.parser);
 }
