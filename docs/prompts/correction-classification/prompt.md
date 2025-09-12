@@ -29,7 +29,7 @@ Provide inputs exactly as labeled lines:
 
 ## Output JSON Schema (structure)
 
-- Produce a single JSON object using exactly these fields: `correctionType`, `confidence`, `originalQuestion`, `botResponse`, `correction`, `reason`.
+- Produce a single JSON object using these fields: `correctionType`, `confidence`, `originalQuestion`, `botResponse`, `correction`, `reason`. You may optionally include `schemaVersion` with value "1".
 - `correctionType`: one of `factual`, `navigation`, `outdated`.
 - `confidence`: integer from 0 to 100 (inclusive).
 - `originalQuestion`, `botResponse`, `correction`, `reason`: strings (empty string allowed when information is missing).

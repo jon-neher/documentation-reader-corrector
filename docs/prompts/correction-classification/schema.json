@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/schemas/correction-classification.schema.json",
+  "$id": "https://raw.githubusercontent.com/jon-neher/documentation-reader-corrector/main/docs/prompts/correction-classification/schema.json",
   "title": "CorrectionClassification",
   "type": "object",
   "additionalProperties": false,
@@ -13,6 +13,11 @@
     "reason"
   ],
   "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["1"],
+      "description": "Optional schema version to ease future evolution"
+    },
     "correctionType": {
       "type": "string",
       "enum": ["factual", "navigation", "outdated"],
