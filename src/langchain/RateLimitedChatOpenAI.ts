@@ -118,4 +118,3 @@ export function withOpenAIRateLimit<TIn = unknown, TOut = unknown>(
   return gate.pipe(model).pipe(logCost);
 }
 
-export default withOpenAIRateLimit;

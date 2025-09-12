@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RunnableLambda } from '@langchain/core/runnables';
 import { withOpenAIRateLimit } from '../RateLimitedChatOpenAI.js';
@@ -81,6 +82,61 @@ describe('withOpenAIRateLimit adapter', () => {
     const wrapped = withOpenAIRateLimit(underlying, stub);
     await wrapped.invoke('x');
     expect(stub.monthlySpend).toBe(spendBefore);
+  });
+  
+  it('extracts token usage from usage_metadata when provided and logs cost (uses modelHint)', async () => {
+    const limiter = { waitForRateLimit: vi.fn().mockResolvedValue(undefined) } as Pick<OpenAIRateLimiter, 'waitForRateLimit'>;
+    const underlying = new RunnableLambda<string, any>({
+      func: async () => ({
+        content: 'ok',
+        usage_metadata: { prompt_tokens: 7, completion_tokens: 3, total_tokens: 10 },
+      }),
+    });
+
+    const spyPrice = vi.spyOn(pricing, 'estimateCostUSD');
+    const spyInfo = vi.spyOn(logger.logger, 'info');
+
+    const wrapped = withOpenAIRateLimit(underlying, limiter, { modelHint: 'gpt-4o-mini' });
+    await wrapped.invoke('x');
+
+    expect(spyPrice).toHaveBeenCalledTimes(1);
+    expect(spyPrice).toHaveBeenCalledWith({ model: 'gpt-4o-mini', promptTokens: 7, completionTokens: 3 });
+    expect(spyInfo).toHaveBeenCalled();
+  });
+
+  it('suppresses debug logging when no usage or response metadata exists', async () => {
+    const limiter = { waitForRateLimit: vi.fn().mockResolvedValue(undefined) } as Pick<OpenAIRateLimiter, 'waitForRateLimit'>;
+    const underlying = new RunnableLambda<string, any>({
+      func: async () => ({ content: 'no-metadata' }),
+    });
+
+    const spyDebug = vi.spyOn(logger.logger, 'debug');
+    const wrapped = withOpenAIRateLimit(underlying, limiter, { modelHint: 'gpt-4o-mini' });
+    await wrapped.invoke('x');
+    expect(spyDebug).not.toHaveBeenCalled();
+  });
+
+  it('logs warn with {message, stack} when pricing throws', async () => {
+    const limiter = { waitForRateLimit: vi.fn().mockResolvedValue(undefined) } as Pick<OpenAIRateLimiter, 'waitForRateLimit'>;
+    const underlying = new RunnableLambda<string, any>({
+      func: async () => ({
+        content: 'ok',
+        response_metadata: { model: 'gpt-4o-mini', token_usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 } },
+      }),
+    });
+
+    vi.spyOn(pricing, 'estimateCostUSD').mockImplementation(() => {
+      throw new Error('price boom');
+    });
+    const spyWarn = vi.spyOn(logger.logger, 'warn');
+
+    const wrapped = withOpenAIRateLimit(underlying, limiter);
+    await wrapped.invoke('x');
+
+    expect(spyWarn).toHaveBeenCalled();
+    const payload = spyWarn.mock.calls[0]?.[1] as any;
+    expect(payload?.message).toBe('price boom');
+    expect(typeof payload?.stack).toBe('string');
   });
 });
 
