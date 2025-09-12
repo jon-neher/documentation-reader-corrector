@@ -1,0 +1,8 @@
+{
+  "correctionType": "factual",
+  "confidence": 96,
+  "originalQuestion": "What is the maximum file upload size?",
+  "botResponse": "You can upload files up to 100 MB.",
+  "correction": "The upload limit is 25 MB.",
+  "reason": "The product has a 25 MB cap; 100 MB is incorrect."
+}
