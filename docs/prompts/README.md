@@ -42,8 +42,6 @@ const result = await chain.invoke({
   wrong: 'Account Settings → Security',
   right: 'Partner Center → Profile page',
   reason: 'UI changed in 2024.07',
-  // You may also use: correctionAnalysisV1.getFormatInstructions()
-  format_instructions: correctionAnalysisV1.getFormatInstructions(),
 });
 ```
 
@@ -73,7 +71,42 @@ See `examples/langchain/poc_correction_analysis.mjs` for a runnable example that
 ## Parameters and partials
 
 - Variables are declared in the template body (e.g., `{originalQuestion}`).
-- Use the `format_instructions` partial to inject the parser’s format hints. All exported specs already include a partial so callers can pass `format_instructions` as an input variable.
+- Templates include a `{format_instructions}` placeholder but are not pre-partialed.
+- The provided `build*Chain(model)` helpers auto-inject `format_instructions` for you at call sites. When using these helpers, do not pass `format_instructions` manually.
+- For manual composition, either:
+  - pass `format_instructions: <spec>.getFormatInstructions()` in your input, or
+  - pre‑partial the template via `withFormatInstructions(<spec>.template, <spec>.schema)` and omit the input field.
+
+> Note: Breaking change (2025-09-12). Templates are no longer pre‑partialed. If you previously relied on implicit partials, switch to the `build*Chain(model)` helpers (which auto‑inject) or use one of the manual options above.
+
+Manual composition example (only needed when you are not using a builder helper):
+
+```ts
+import { ChatOpenAI } from '@langchain/openai';
+// Package consumers: import from the public API (package barrel)
+import {
+  withFormatInstructions,
+  correctionAnalysisV1,
+} from 'documentation-reader-corrector';
+
+const model = new ChatOpenAI({ model: 'gpt-4o-mini', temperature: 0.2 });
+
+// Pre‑partial the template so you don't have to pass `format_instructions` in input
+const { template: partialed, parser } = await withFormatInstructions(
+  correctionAnalysisV1.template,
+  correctionAnalysisV1.schema,
+);
+
+const chain = partialed.pipe(model).pipe(parser);
+const result = await chain.invoke({
+  originalQuestion: 'How do I reset my partner dashboard password?',
+  botResponse: 'You can reset passwords in Account Settings under Security.',
+  wrong: 'Account Settings → Security',
+  right: 'Partner Center → Profile page',
+  reason: 'UI changed in 2024.07',
+  // No `format_instructions` needed here; the template is already partialed
+});
+```
 
 ## Structured outputs
 

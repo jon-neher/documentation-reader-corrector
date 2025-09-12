@@ -3,7 +3,7 @@
 
 import { ChatOpenAI } from '@langchain/openai';
 // Import the compiled template and parser from the package barrel in dist
-import { correctionAnalysisV1 } from '../../dist/index.js';
+import { buildCorrectionAnalysisChain } from '../../dist/index.js';
 
 // --- Simple pricing snapshot for demo logging (USD per 1K tokens) ---
 const PRICING = {
@@ -17,8 +17,7 @@ function estimateCostUSD(model, promptTokens = 0, completionTokens = 0) {
   return Number(cost.toFixed(6));
 }
 
-// Structured output parser is bundled with the spec
-const { template: prompt, parser } = correctionAnalysisV1;
+// Prefer the builder helper: it auto-injects `format_instructions`
 
 const modelName = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const model = new ChatOpenAI({
@@ -28,7 +27,7 @@ const model = new ChatOpenAI({
   timeout: 20_000,
 });
 
-const chain = prompt.pipe(model).pipe(parser);
+const chain = buildCorrectionAnalysisChain(model);
 
 async function main() {
   const input = {
@@ -37,8 +36,13 @@ async function main() {
     wrong: 'Account Settings → Security',
     right: 'Partner Center → Profile page',
     reason: 'UI changed in 2024.07',
-    format_instructions: parser.getFormatInstructions(),
   };
+
+  // If composing manually instead of using the builder, remember to supply
+  // `format_instructions: <spec>.getFormatInstructions()` (e.g.,
+  // import { correctionAnalysisV1 } from '../../dist/index.js' and then
+  // use `correctionAnalysisV1.getFormatInstructions()`), or pre‑partial the
+  // template via `withFormatInstructions(...)`.
 
   const start = Date.now();
   const result = await chain.invoke(input);
