@@ -177,6 +177,10 @@ Track development progress: [AI Support Bot Correction Tracker](https://linear.a
 - **Jon Neher**: AI integration, pattern recognition, and orchestration service
 - **Haley Serrano**: Google Chat integration and webhook processing
 
+## Centralized prompts
+
+Parameterizable LangChain `ChatPromptTemplate` definitions with Zod-typed outputs live under `src/prompts/` (see `docs/prompts/README.md`). These templates power correction analysis, documentation generation, and pattern recognition, and include few-shot examples plus version metadata.
+
 ## 📖 API Documentation
 
 ### Main Endpoint

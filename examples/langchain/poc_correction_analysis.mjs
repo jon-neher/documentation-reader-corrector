@@ -1,10 +1,9 @@
 // Minimal POC: Correction analysis with LangChain.js
-// Usage: OPENAI_API_KEY=... node examples/langchain/poc_correction_analysis.mjs
+// Usage: npm run build && OPENAI_API_KEY=... node examples/langchain/poc_correction_analysis.mjs
 
-import { z } from 'zod';
 import { ChatOpenAI } from '@langchain/openai';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { StructuredOutputParser } from '@langchain/core/output_parsers';
+// Import the compiled template and parser from the package barrel in dist
+import { correctionAnalysisV1 } from '../../dist/index.js';
 
 // --- Simple pricing snapshot for demo logging (USD per 1K tokens) ---
 const PRICING = {
@@ -18,48 +17,8 @@ function estimateCostUSD(model, promptTokens = 0, completionTokens = 0) {
   return Number(cost.toFixed(6));
 }
 
-// --- Schema ---
-const CorrectionSchema = z.object({
-  classification: z.enum([
-    'wrong_reference',
-    'outdated_ui',
-    'incorrect_procedure',
-    'missing_context',
-    'other',
-  ]),
-  confidence: z.number().min(0).max(1),
-  rationale: z.string().min(1),
-  fields: z.object({
-    wrong: z.string().optional().nullable(),
-    right: z.string().optional().nullable(),
-    reason: z.string().optional().nullable(),
-  }),
-});
-
-const parser = StructuredOutputParser.fromZodSchema(CorrectionSchema);
-
-// --- Prompt ---
-const prompt = ChatPromptTemplate.fromMessages([
-  [
-    'system',
-    [
-      'You analyze corrections to an internal AI support bot.',
-      'Extract a structured judgment using the schema and follow format instructions strictly.',
-    ].join(' '),
-  ],
-  [
-    'human',
-    [
-      'Original question: {originalQuestion}',
-      'Bot response: {botResponse}',
-      'Correction provided:',
-      'wrong = {wrong}',
-      'right = {right}',
-      'reason = {reason}',
-      '\n\n{format_instructions}',
-    ].join('\n'),
-  ],
-]);
+// Structured output parser is bundled with the spec
+const { template: prompt, parser } = correctionAnalysisV1;
 
 const modelName = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const model = new ChatOpenAI({
