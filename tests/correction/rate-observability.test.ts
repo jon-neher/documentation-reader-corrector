@@ -53,7 +53,7 @@ describe('Rate limiting adapter and observability', () => {
     const chain = createCorrectionAnalysisChain({
       modelRunnable: fakeModel,
       limiter,
-      callbacks: { callbacks: [handler] },
+      config: { callbacks: [handler] },
     });
 
     const res = await chain.invoke({

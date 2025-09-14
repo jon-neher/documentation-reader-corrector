@@ -17,8 +17,8 @@ export type CorrectionAnalysisOptions = {
   maxRetries?: number;
   /** Request timeout in ms (default 20_000). */
   timeoutMs?: number;
-  /** LangChain RunnableConfig (e.g., callbacks, tags) applied when invoking the chain. */
-  callbacks?: RunnableConfig;
+  /** LangChain RunnableConfig (e.g., callbacks, tags). */
+  config?: RunnableConfig;
   /** Provide a shared limiter; if omitted, a default instance is created. */
   limiter?: OpenAIRateLimiter;
   /**
@@ -56,7 +56,7 @@ export function createCorrectionAnalysisChain(opts: CorrectionAnalysisOptions = 
   ]);
 
   // Attach observability bridge so our logging receives LC run events
-  const observed = withObservability(chain, opts.callbacks);
+  const observed = withObservability(chain, opts.config);
   return observed;
 }
 
@@ -65,7 +65,7 @@ export async function analyzeCorrection(
   opts: CorrectionAnalysisOptions = {}
 ): Promise<CorrectionAnalysis> {
   const chain = createCorrectionAnalysisChain(opts);
-  const result = await chain.invoke(input, opts.callbacks);
+  const result = await chain.invoke(input);
   // StructuredOutputParser.parse() already validates, but cast for TS purposes
   return result as CorrectionAnalysis;
 }
