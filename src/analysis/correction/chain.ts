@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { ChatOpenAI } from '@langchain/openai';
 import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import { RunnableSequence, type RunnableLike, type RunnableConfig } from '@langchain/core/runnables';
@@ -17,7 +16,7 @@ export type CorrectionAnalysisOptions = {
   maxRetries?: number;
   /** Request timeout in ms (default 20_000). */
   timeoutMs?: number;
-  /** LangChain RunnableConfig (e.g., callbacks, tags). */
+  /** LangChain RunnableConfig (e.g., callbacks, tags) applied to the chain via observability wrapper. */
   config?: RunnableConfig;
   /** Provide a shared limiter; if omitted, a default instance is created. */
   limiter?: OpenAIRateLimiter;
