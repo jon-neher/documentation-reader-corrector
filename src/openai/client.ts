@@ -55,13 +55,23 @@ export class OpenAIClient {
     const inputForApi: any = input;
 
     // Responses API call (replacement for Chat Completions).
+    // Sanitize `extra` so it cannot override core params or inject incompatible fields.
+    const baseParams = { model, input: inputForApi, temperature, max_output_tokens: maxTokens } as const;
+    const {
+      input: _ignoreInput,
+      messages: _ignoreMessages,
+      max_tokens: _ignoreMaxTokens,
+      model: _ignoreModel,
+      temperature: _ignoreTemperature,
+      max_output_tokens: _ignoreMaxOut,
+      ...restExtra
+    } = (extra ?? {}) as Record<string, unknown>;
+
     const resp = await this.sdk.responses.create(
       {
-        model,
-        input: inputForApi,
-        temperature,
-        max_output_tokens: maxTokens,
-        ...(extra || {}),
+        // Allow additional supported fields via `extra`, but ensure core params take precedence
+        ...restExtra,
+        ...baseParams,
       },
       { timeout: timeoutMs }
     );
@@ -92,7 +102,8 @@ export class OpenAIClient {
 function mapChatMessagesToResponsesInput(msgs: ChatMessage[]): Array<Record<string, unknown>> {
   return msgs.map((m) => {
     const role = (m as any)?.role as string;
-    // Handle special roles explicitly; default to assistant only for truly unknown roles.
+    // Handle special roles explicitly; default unknowns to 'user' to avoid the assistant
+    // "talking to itself" or misattributing user content.
     let mappedRole: 'user' | 'assistant' | 'system' | 'developer';
     if (role === 'tool' || role === 'function') {
       // Treat tool/function outputs as user-provided context to avoid misattributing to assistant.
@@ -100,7 +111,7 @@ function mapChatMessagesToResponsesInput(msgs: ChatMessage[]): Array<Record<stri
     } else if ((['user', 'assistant', 'system', 'developer'] as const).includes(role as any)) {
       mappedRole = role as any;
     } else {
-      mappedRole = 'assistant';
+      mappedRole = 'user';
     }
     const content = normalizeContent((m as any)?.content);
     return { role: mappedRole, content, type: 'message' };
@@ -117,40 +128,58 @@ function normalizeContent(
   // Chat Completions allows arrays of content parts; map known part shapes.
   if (Array.isArray(content)) {
     const parts = content as Array<any>;
-    const mapped = parts
-      .map((part) => {
-        const t = part?.type as string | undefined;
-        if (!t) return undefined;
-        if (t === 'text' && typeof part?.text === 'string') {
-          return { type: 'input_text', text: part.text };
-        }
-        if (t === 'image_url' && part?.image_url && typeof part.image_url?.url === 'string') {
-          const detail = part.image_url?.detail;
-          return { type: 'input_image', image_url: part.image_url.url, detail: detail ?? 'auto' };
-        }
-        if (t === 'input_audio' && part?.input_audio && typeof part.input_audio?.data === 'string') {
-          const fmt = part.input_audio?.format;
-          return { type: 'input_audio', input_audio: { data: part.input_audio.data, format: fmt } };
-        }
-        if (t === 'file' && part?.file) {
-          const f = part.file;
-          const out: Record<string, unknown> = { type: 'input_file' };
-          if (typeof f.file_id === 'string') out.file_id = f.file_id;
-          if (typeof f.file_data === 'string') out.file_data = f.file_data;
-          if (typeof f.filename === 'string') out.filename = f.filename;
-          return out;
-        }
-        return undefined;
-      })
-      .filter(Boolean) as Array<Record<string, unknown>>;
+    const mapped: Array<Record<string, unknown>> = [];
+    const unknown: Array<any> = [];
+
+    for (const part of parts) {
+      const t = (part as any)?.type as string | undefined;
+      if (!t) {
+        unknown.push(part);
+        continue;
+      }
+      if (t === 'text' && typeof (part as any)?.text === 'string') {
+        mapped.push({ type: 'input_text', text: (part as any).text });
+        continue;
+      }
+      if (t === 'image_url' && (part as any)?.image_url && typeof (part as any).image_url?.url === 'string') {
+        const detail = (part as any).image_url?.detail;
+        mapped.push({ type: 'input_image', image_url: (part as any).image_url.url, detail: detail ?? 'auto' });
+        continue;
+      }
+      if (t === 'input_audio' && (part as any)?.input_audio && typeof (part as any).input_audio?.data === 'string') {
+        const fmt = (part as any).input_audio?.format;
+        mapped.push({ type: 'input_audio', input_audio: { data: (part as any).input_audio.data, format: fmt } });
+        continue;
+      }
+      if (t === 'file' && (part as any)?.file) {
+        const f = (part as any).file;
+        const out: Record<string, unknown> = { type: 'input_file' };
+        if (typeof f.file_id === 'string') out.file_id = f.file_id;
+        if (typeof f.file_data === 'string') out.file_data = f.file_data;
+        if (typeof f.filename === 'string') out.filename = f.filename;
+        mapped.push(out);
+        continue;
+      }
+      // Unrecognized known-type shape; preserve as unknown
+      unknown.push(part);
+    }
+
+    if (unknown.length) {
+      try {
+        mapped.push({ type: 'input_text', text: JSON.stringify(unknown) });
+      } catch {
+        // As a last resort, coerce to string to avoid throwing during request build
+        mapped.push({ type: 'input_text', text: String(unknown) });
+      }
+    }
 
     if (mapped.length === 0) {
-      // Fallback: join any text fields; otherwise JSON-stringify the parts to avoid dropping content.
-      const fallbackText = parts
-        .map((p) => (typeof p?.text === 'string' ? p.text : ''))
-        .filter(Boolean)
-        .join(' ');
-      return [{ type: 'input_text', text: fallbackText || JSON.stringify(parts) }];
+      // Nothing recognized at all; preserve entire array as a JSON blob so no information is lost.
+      try {
+        return [{ type: 'input_text', text: JSON.stringify(parts) }];
+      } catch {
+        return [{ type: 'input_text', text: String(parts) }];
+      }
     }
     return mapped;
   }
