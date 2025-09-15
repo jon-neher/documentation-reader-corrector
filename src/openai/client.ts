@@ -153,11 +153,17 @@ function normalizeContent(
       }
       if (t === 'file' && (part as any)?.file) {
         const f = (part as any).file;
-        const out: Record<string, unknown> = { type: 'input_file' };
-        if (typeof f.file_id === 'string') out.file_id = f.file_id;
-        if (typeof f.file_data === 'string') out.file_data = f.file_data;
-        if (typeof f.filename === 'string') out.filename = f.filename;
-        mapped.push(out);
+        // Enforce mutual exclusivity between file_id and file_data; include filename only with file_data.
+        if (typeof f.file_id === 'string') {
+          mapped.push({ type: 'input_file', file_id: f.file_id });
+        } else if (typeof f.file_data === 'string') {
+          const out: Record<string, unknown> = { type: 'input_file', file_data: f.file_data };
+          if (typeof f.filename === 'string') out.filename = f.filename;
+          mapped.push(out);
+        } else {
+          // Neither file_id nor file_data provided; preserve as unknown for trailing JSON blob.
+          unknown.push(part);
+        }
         continue;
       }
       // Unrecognized known-type shape; preserve as unknown
