@@ -1,0 +1,8 @@
+{
+  "correctionType": "factual",
+  "confidence": 95,
+  "originalQuestion": "Does the Free tier include audit logs?",
+  "botResponse": "Yes, audit logs are available on all plans.",
+  "correction": "Audit logs are only available on Pro and Enterprise.",
+  "reason": "The Free tier does not include audit logs."
+}

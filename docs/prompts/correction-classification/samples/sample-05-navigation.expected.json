@@ -1,0 +1,8 @@
+{
+  "correctionType": "navigation",
+  "confidence": 91,
+  "originalQuestion": "Where do I set the default timezone for my workspace?",
+  "botResponse": "Account → Preferences → Time.",
+  "correction": "Workspace → Settings → Locale.",
+  "reason": "Use Workspace → Settings → Locale; Account → Preferences → Time is incorrect."
+}
