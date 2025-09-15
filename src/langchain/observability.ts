@@ -66,8 +66,10 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
       runType,
       runName,
       inputKeys,
-      tags,
+      // Summarize any provided metadata first to avoid it overriding our
+      // handler-level tagsCount derived from the `tags` parameter below.
       ...safeMeta(metadata),
+      tagsCount: Array.isArray(tags) ? tags.length : undefined,
     });
   }
 
@@ -117,7 +119,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
     this.trackStart(runId);
     const promptCount = Array.isArray(prompts) ? prompts.length : 0;
     const charLen = Array.isArray(prompts) ? prompts.reduce((n, p) => n + (p?.length || 0), 0) : 0;
-    const model = (extraParams as any)?.options?.model ?? (metadata as any)?.model;
+    const model = extractModel({ extra: extraParams, metadata }, ['extra', 'metadata']);
     logger.info('LC LLM start', {
       runId,
       parentRunId,
@@ -125,7 +127,8 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
       promptCount,
       promptCharLen: charLen,
       model,
-      tags,
+      // Only emit a count; never log raw tags arrays.
+      tagsCount: Array.isArray(tags) ? tags.length : undefined,
     });
   }
 
@@ -141,8 +144,15 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   ) {
     this.trackStart(runId);
     const totalMessages = Array.isArray(messages) ? messages.reduce((n, m) => n + (Array.isArray(m) ? m.length : 0), 0) : 0;
-    const model = (extraParams as any)?.options?.model ?? (metadata as any)?.model;
-    logger.info('LC chat start', { runId, parentRunId, runName, totalMessages, model, tags });
+    const model = extractModel({ extra: extraParams, metadata }, ['extra', 'metadata']);
+    logger.info('LC chat start', {
+      runId,
+      parentRunId,
+      runName,
+      totalMessages,
+      model,
+      tagsCount: Array.isArray(tags) ? tags.length : undefined,
+    });
   }
 
   async handleChatModelError(
@@ -174,7 +184,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   ) {
     const elapsedMs = this.elapsed(runId);
     const usage = extractTokenUsage(output, extraParams);
-    const model = (extraParams as any)?.options?.model ?? (output?.llmOutput as any)?.model;
+    const model = extractModel({ extra: extraParams, llmOutput: (output?.llmOutput as unknown) }, ['extra', 'llmOutput']);
     const meta: Record<string, unknown> = { runId, parentRunId, elapsedMs };
     if (model) meta.model = model;
     if (usage) {
@@ -297,14 +307,42 @@ function safeMeta(meta?: Record<string, unknown>): Record<string, unknown> {
     'runName',
     'runType',
     'parentRunId',
-    'tags',
   ]);
   const isPrimitive = (v: unknown) => v == null || ['string', 'number', 'boolean'].includes(typeof v);
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(meta)) {
+    // Special-case tags: never include raw arrays; summarize as a count.
+    if (k === 'tags' && Array.isArray(v)) {
+      out.tagsCount = v.length;
+      continue;
+    }
     if (allowed.has(k) && isPrimitive(v)) out[k] = v as any;
   }
   return out;
+}
+
+/**
+* Resolve model name from known sources with explicit precedence.
+* Pass the list of sources in their precedence order using the `order` array.
+* Only the same effective sources used previously are considered per call site.
+*/
+function extractModel(
+  opts: { extra?: Record<string, unknown>; metadata?: Record<string, unknown>; llmOutput?: unknown },
+  order: Array<'extra' | 'metadata' | 'llmOutput'>
+): string | undefined {
+  for (const src of order) {
+    if (src === 'extra') {
+      const m = (opts.extra as any)?.options?.model;
+      if (typeof m === 'string' && m) return m;
+    } else if (src === 'metadata') {
+      const m = (opts.metadata as any)?.model;
+      if (typeof m === 'string' && m) return m;
+    } else if (src === 'llmOutput') {
+      const m = (opts.llmOutput as any)?.model;
+      if (typeof m === 'string' && m) return m;
+    }
+  }
+  return undefined;
 }
 
 function safeType(x: unknown): string | undefined {
