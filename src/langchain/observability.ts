@@ -383,11 +383,43 @@ function extractTokenUsage(
 
   if (p == null && c == null && t == null) return undefined;
 
-  // Coerce to numbers once, then derive total when providers omit it but parts are present.
-  const pNum = asNumber(p);
-  const cNum = asNumber(c);
+  // Coerce to numbers once
+  let pNum = asNumber(p);
+  let cNum = asNumber(c);
   let tNum = asNumber(t);
+
+  // 1) Fill in missing total when both parts are known
   if (tNum == null && pNum != null && cNum != null) tNum = pNum + cNum;
+
+  // 2) Derive the missing part from the reported total when exactly one part is known.
+  //    This runs only when a provider supplies totalTokens, and one of the parts is absent.
+  if (tNum != null && (pNum == null) !== (cNum == null)) {
+    if (pNum == null && cNum != null) {
+      pNum = tNum - cNum;
+    } else if (cNum == null && pNum != null) {
+      cNum = tNum - pNum;
+    }
+  }
+
+  // 3) Consistency clamp: if provider total is less than the sum of parts, prefer parts
+  //    and adjust total upward to match the computed sum. Rationale: downstream pricing
+  //    uses per-part counts; keeping parts intact preserves accuracy and we avoid
+  //    contradictory logs where prompt+completion exceeds total.
+  if (pNum != null && cNum != null) {
+    const sum = pNum + cNum;
+    if (tNum == null || tNum < sum) tNum = sum;
+  }
+
+  // Ensure non-negative values (defensive against pathological inputs)
+  if (typeof pNum === 'number' && pNum < 0) pNum = 0;
+  if (typeof cNum === 'number' && cNum < 0) cNum = 0;
+  if (typeof tNum === 'number' && tNum < 0) tNum = 0;
+
+  // Final consistency after clamping: ensure total >= sum(parts)
+  if (pNum != null && cNum != null) {
+    const sum = pNum + cNum;
+    if (tNum == null || tNum < sum) tNum = sum;
+  }
 
   return { promptTokens: pNum, completionTokens: cNum, totalTokens: tNum };
 }
