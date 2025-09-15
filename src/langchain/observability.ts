@@ -36,7 +36,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
     this.starts.set(runId, Date.now());
   }
 
-  // ------ Chain events ------
+  // Chain events
   async handleChainStart(
     _chain: unknown,
     inputs: Record<string, unknown>,
@@ -84,7 +84,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
     logger.error('LC chain error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
   }
 
-  // ------ LLM / ChatModel events ------
+  // LLM / ChatModel events
   async handleLLMStart(
     _llm: unknown,
     prompts: string[],
@@ -178,7 +178,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
     logger.error('LC LLM error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
   }
 
-  // ------ Tool events ------
+  // Tool events
   async handleToolStart(
     tool: unknown,
     _input: string,
@@ -203,7 +203,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
     logger.error('LC tool error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
   }
 
-  // ------ Retriever events (not used yet, but safe to include) ------
+  // Retriever events (not used yet, but safe to include)
   async handleRetrieverStart(
     retriever: unknown,
     _query: string,
@@ -233,7 +233,7 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   }
 }
 
-// ---- helpers ----
+// Helpers
 function safeMeta(meta?: Record<string, unknown>): Record<string, unknown> {
   if (!meta || typeof meta !== 'object') return {};
   // Allowlist a conservative set of non-sensitive, primitive fields only.
@@ -313,7 +313,7 @@ function asNumber(v: unknown): number | undefined {
   return Number.isFinite(n) ? (n as number) : undefined;
 }
 
-// ---- public API ----
+// Public API
 export function buildObservabilityHandlers(): BaseCallbackHandler[] {
   const handlers: BaseCallbackHandler[] = [new LoggerCallbackHandler()];
   if (isLangSmithEnabled()) {
