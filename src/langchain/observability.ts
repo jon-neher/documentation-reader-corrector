@@ -382,7 +382,14 @@ function extractTokenUsage(
   const t = totalTokens ?? exUsage.totalTokens ?? exUsage.total_tokens;
 
   if (p == null && c == null && t == null) return undefined;
-  return { promptTokens: asNumber(p), completionTokens: asNumber(c), totalTokens: asNumber(t) };
+
+  // Coerce to numbers once, then derive total when providers omit it but parts are present.
+  const pNum = asNumber(p);
+  const cNum = asNumber(c);
+  let tNum = asNumber(t);
+  if (tNum == null && pNum != null && cNum != null) tNum = pNum + cNum;
+
+  return { promptTokens: pNum, completionTokens: cNum, totalTokens: tNum };
 }
 
 function asNumber(v: unknown): number | undefined {
