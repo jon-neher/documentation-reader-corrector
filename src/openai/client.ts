@@ -56,7 +56,13 @@ export class OpenAIClient {
 
     // Responses API call (replacement for Chat Completions).
     // Sanitize `extra` so it cannot override core params or inject incompatible fields.
-    const baseParams = { model, input: inputForApi, temperature, max_output_tokens: maxTokens } as const;
+    // Omit `max_output_tokens` entirely when not provided to avoid sending undefined fields.
+    const baseParams = {
+      model,
+      input: inputForApi,
+      temperature,
+      ...(typeof maxTokens === 'number' ? { max_output_tokens: maxTokens } : {}),
+    } as const;
     const {
       input: _ignoreInput,
       messages: _ignoreMessages,
@@ -171,21 +177,12 @@ function normalizeContent(
     }
 
     if (unknown.length) {
-      try {
-        mapped.push({ type: 'input_text', text: JSON.stringify(unknown) });
-      } catch {
-        // As a last resort, coerce to string to avoid throwing during request build
-        mapped.push({ type: 'input_text', text: String(unknown) });
-      }
+      mapped.push({ type: 'input_text', text: safeJsonBlob(unknown) });
     }
 
     if (mapped.length === 0) {
       // Nothing recognized at all; preserve entire array as a JSON blob so no information is lost.
-      try {
-        return [{ type: 'input_text', text: JSON.stringify(parts) }];
-      } catch {
-        return [{ type: 'input_text', text: String(parts) }];
-      }
+      return [{ type: 'input_text', text: safeJsonBlob(parts) }];
     }
     return mapped;
   }
@@ -195,6 +192,21 @@ function normalizeContent(
   } catch {
     return '';
   }
+}
+
+// Cap size of JSON-serialized unknown content to avoid oversized requests.
+const MAX_UNKNOWN_JSON = 16_384; // 16KB
+function safeJsonBlob(value: unknown): string {
+  let out: string;
+  try {
+    out = JSON.stringify(value);
+  } catch {
+    out = String(value);
+  }
+  if (out.length > MAX_UNKNOWN_JSON) {
+    return out.slice(0, MAX_UNKNOWN_JSON) + ' …(truncated)';
+  }
+  return out;
 }
 
 function getOutputText(resp: unknown): string | undefined {
