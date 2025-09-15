@@ -36,9 +36,15 @@ export class OpenAIClient {
   }
 
   async chat(prompt: string | ChatMessage[], options: MakeRequestOptions = {}): Promise<OpenAIResponse> {
-    // Honor `options.messages` when provided; otherwise derive from `prompt`.
-    const messages: ChatMessage[] =
-      options.messages ?? (Array.isArray(prompt) ? prompt : [{ role: 'user', content: String(prompt) }]);
+    // Determine where messages come from. Treat an empty `options.messages` as absent
+    // so that a non-empty string `prompt` is not discarded.
+    const hasExplicitMessages = Array.isArray(options.messages) && options.messages.length > 0;
+    const isPromptArray = Array.isArray(prompt);
+    const messages: ChatMessage[] | undefined = hasExplicitMessages
+      ? (options.messages as ChatMessage[])
+      : isPromptArray
+        ? (prompt as ChatMessage[])
+        : undefined;
 
     const { model = process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature = 0.2, maxTokens, timeoutMs, extra } =
       options;
@@ -47,8 +53,8 @@ export class OpenAIClient {
     // did not also provide messages, pass the string directly for the simplest
     // request shape. Otherwise, map Chat Completions-style messages to Responses
     // `input` items (EasyInputMessage objects).
-    const input = (options.messages || Array.isArray(prompt))
-      ? mapChatMessagesToResponsesInput(messages)
+    const input = (hasExplicitMessages || isPromptArray)
+      ? mapChatMessagesToResponsesInput(messages as ChatMessage[])
       : String(prompt);
     // Cast to `any` to avoid importing deep OpenAI types; we build the correct
     // shape (`ResponseInput` or `string`) above.
@@ -83,19 +89,28 @@ export class OpenAIClient {
     );
 
     // Prefer SDK-provided `output_text`; fall back to first output message text.
-    const content = getOutputText(resp) ?? '';
+    type LiteResponse = {
+      id: string;
+      model?: string;
+      created_at?: number;
+      usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
+      output_text?: string;
+      output?: unknown[];
+    };
+    const r = resp as unknown as LiteResponse;
+    const content = getOutputText(r) ?? '';
 
     return {
-      id: resp.id,
-      model: (resp as any).model || model,
-      created: (resp as any).created_at || Math.floor(Date.now() / 1000),
+      id: r.id,
+      model: r.model || model,
+      created: r.created_at || Math.floor(Date.now() / 1000),
       content,
-      usage: (resp as any).usage
+      usage: r.usage
         ? {
             // Map Responses usage fields to our legacy shape
-            prompt_tokens: (resp as any).usage.input_tokens ?? 0,
-            completion_tokens: (resp as any).usage.output_tokens ?? 0,
-            total_tokens: (resp as any).usage.total_tokens ?? 0,
+            prompt_tokens: r.usage.input_tokens ?? 0,
+            completion_tokens: r.usage.output_tokens ?? 0,
+            total_tokens: r.usage.total_tokens ?? 0,
           }
         : undefined,
       raw: resp,
@@ -216,6 +231,10 @@ function getOutputText(resp: unknown): string | undefined {
   const items = any?.output as Array<any> | undefined;
   if (Array.isArray(items)) {
     for (const it of items) {
+      // Some Responses return top-level text items
+      if ((it?.type === 'output_text' || it?.type === 'text') && typeof it?.text === 'string') {
+        return it.text as string;
+      }
       if (it?.type === 'message' && Array.isArray(it?.content)) {
         // Find first text-like content
         const textPart = (it.content as Array<any>).find(
