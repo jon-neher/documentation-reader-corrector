@@ -10,6 +10,5 @@ export type {
   CorrectionClassification,
   CorrectionAnalysisInput,
 } from './analysis/correction/types.js';
-// Preserve upstream exports while keeping the new analysis APIs.
 export { withOpenAIRateLimit } from './langchain/RateLimitedChatOpenAI.js';
 export * from './prompts/index.js';
