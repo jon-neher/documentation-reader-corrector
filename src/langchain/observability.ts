@@ -31,8 +31,19 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   private starts = new Map<string, number>();
 
   private trackStart(runId: string) {
-    // Prevent unbounded growth if end/error isn't called due to abrupt termination
-    if (this.starts.size > 10000) this.starts.clear();
+    // Prevent unbounded growth if end/error isn't called due to abrupt termination.
+    // Instead of clearing all entries at once, evict a small fraction of the
+    // oldest entries (iteration order of Map preserves insertion order) to
+    // avoid dropping all in-flight timings.
+    const MAX_STARTS = 10_000;
+    if (this.starts.size >= MAX_STARTS) {
+      const toEvict = Math.ceil(MAX_STARTS * 0.1); // evict ~10% oldest
+      let evicted = 0;
+      for (const key of this.starts.keys()) {
+        this.starts.delete(key);
+        if (++evicted >= toEvict) break;
+      }
+    }
     this.starts.set(runId, Date.now());
   }
 
@@ -81,7 +92,15 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   ) {
     const elapsedMs = this.elapsed(runId);
     const e = normalizeError(err);
-    logger.error('LC chain error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
+    const { errorName, errorMessage, errorStack } = sanitizedErrorFields(e);
+    logger.error('LC chain error', {
+      runId,
+      parentRunId,
+      elapsedMs,
+      errorName,
+      errorMessage,
+      ...(errorStack ? { errorStack } : {}),
+    });
   }
 
   // LLM / ChatModel events
@@ -135,13 +154,14 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   ) {
     const elapsedMs = this.elapsed(runId);
     const e = normalizeError(err);
+    const { errorName, errorMessage, errorStack } = sanitizedErrorFields(e);
     logger.error('LC chat error', {
       runId,
       parentRunId,
       elapsedMs,
-      errorName: e.name,
-      errorMessage: e.message,
-      errorStack: e.stack,
+      errorName,
+      errorMessage,
+      ...(errorStack ? { errorStack } : {}),
     });
   }
 
@@ -175,7 +195,15 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   ) {
     const elapsedMs = this.elapsed(runId);
     const e = normalizeError(err);
-    logger.error('LC LLM error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
+    const { errorName, errorMessage, errorStack } = sanitizedErrorFields(e);
+    logger.error('LC LLM error', {
+      runId,
+      parentRunId,
+      elapsedMs,
+      errorName,
+      errorMessage,
+      ...(errorStack ? { errorStack } : {}),
+    });
   }
 
   // Tool events
@@ -200,7 +228,15 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   async handleToolError(err: unknown, runId: string, parentRunId?: string) {
     const elapsedMs = this.elapsed(runId);
     const e = normalizeError(err);
-    logger.error('LC tool error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
+    const { errorName, errorMessage, errorStack } = sanitizedErrorFields(e);
+    logger.error('LC tool error', {
+      runId,
+      parentRunId,
+      elapsedMs,
+      errorName,
+      errorMessage,
+      ...(errorStack ? { errorStack } : {}),
+    });
   }
 
   // Retriever events (not used yet, but safe to include)
@@ -223,7 +259,15 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   async handleRetrieverError(err: unknown, runId: string, parentRunId?: string) {
     const elapsedMs = this.elapsed(runId);
     const e = normalizeError(err);
-    logger.error('LC retriever error', { runId, parentRunId, elapsedMs, errorName: e.name, errorMessage: e.message, errorStack: e.stack });
+    const { errorName, errorMessage, errorStack } = sanitizedErrorFields(e);
+    logger.error('LC retriever error', {
+      runId,
+      parentRunId,
+      elapsedMs,
+      errorName,
+      errorMessage,
+      ...(errorStack ? { errorStack } : {}),
+    });
   }
 
   private elapsed(runId: string): number | undefined {
@@ -284,6 +328,39 @@ function summarizeKeys(obj: Record<string, unknown> | undefined): string[] | und
 
 function normalizeError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
+}
+
+/**
+* Produce sanitized error fields for logging to avoid accidental content leakage.
+* - The message is truncated to a conservative maximum length.
+* - The stack trace is omitted by default and only included when `LOG_ERROR_STACKS`
+*   is explicitly enabled ("true" or "1"). When included, it is limited to a
+*   small number of lines to minimize potential leakage of prompts or inputs
+*   embedded in exception messages.
+*/
+function sanitizedErrorFields(e: Error): {
+  errorName: string;
+  errorMessage: string;
+  errorStack?: string;
+} {
+  const MAX_MESSAGE_LEN = 500;
+  const MAX_STACK_LINES = 10;
+  const includeStack = (() => {
+    const val = String(process.env.LOG_ERROR_STACKS || '').toLowerCase();
+    return val === 'true' || val === '1';
+  })();
+
+  const errorName = e?.name || 'Error';
+  const msg = String(e?.message ?? '').slice(0, MAX_MESSAGE_LEN);
+  const rawStack = includeStack ? e?.stack : undefined;
+  const errorStack = rawStack
+    ? rawStack
+        .split('\n')
+        .slice(0, MAX_STACK_LINES)
+        .join('\n')
+    : undefined;
+
+  return { errorName, errorMessage: msg, ...(errorStack ? { errorStack } : {}) };
 }
 
 function extractTokenUsage(
