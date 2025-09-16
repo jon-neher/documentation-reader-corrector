@@ -5,7 +5,8 @@ import { BudgetExceededError, InvalidApiKeyError, InvalidRequestError, NetworkTi
 
 describe('OpenAIRateLimiter + Responses API flows (with stubbed OpenAIClient)', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    // Reset mock state without restoring original implementations
+    vi.clearAllMocks();
     process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
   });
 
@@ -37,7 +38,7 @@ describe('OpenAIRateLimiter + Responses API flows (with stubbed OpenAIClient)', 
     const after = (limiter as any).monthlySpend as number;
     expect(res.content).toBe('ok');
     // gpt-4o-mini: $0.0006 / 1K input, $0.0024 / 1K output → 0.00018 for 100/50 tokens
-    expect(Number((after - before).toFixed(6))).toBe(0.00018);
+    expect(after - before).toBeCloseTo(0.00018, 10);
     expect(chat).toHaveBeenCalledTimes(1);
   });
 
@@ -111,35 +112,41 @@ describe('OpenAIRateLimiter + Responses API flows (with stubbed OpenAIClient)', 
 describe('OpenAIRateLimiter.waitForRateLimit', () => {
   it('logs a wait cycle when at capacity and proceeds without long delays', async () => {
     const restoreLevel = process.env.LOG_LEVEL;
-    process.env.LOG_LEVEL = 'debug';
-    const limiter = new OpenAIRateLimiter(1, 1000);
-    // First call takes the only slot in the minute
-    const realNow = Date.now;
-    let now = 0;
-    Date.now = () => now as any;
+    vi.useFakeTimers();
+    const base = new Date('2020-01-01T00:00:00.000Z');
     try {
+      process.env.LOG_LEVEL = 'debug';
+      vi.setSystemTime(base);
+
+      const limiter = new OpenAIRateLimiter(1, 1000);
+
+      // First call takes the only slot in the minute at t=0
       await limiter.waitForRateLimit();
-      // Second call at t=59_999 triggers a wait with waitMs=1ms (no long delay)
-      now = 59_999;
+
+      // Move to just before window rolls over to force a short wait
+      vi.setSystemTime(new Date(base.getTime() + 59_999));
+
       const logs: any[] = [];
-      const orig = console.log;
-      // Intercept JSON logs from our logger
-      // eslint-disable-next-line no-console
-      console.log = ((line?: any) => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation((line?: any) => {
         try {
           const obj = typeof line === 'string' ? JSON.parse(line) : line;
           if (obj?.msg === 'Rate limit reached; waiting') logs.push(obj);
         } catch {}
-      }) as any;
-      // Ensure the loop can exit by bumping time after the first sleep
-      setTimeout(() => { now = 60_000; }, 1);
-      await limiter.waitForRateLimit();
-      console.log = orig;
+      });
+
+      // Trigger second call; it should wait ~1ms
+      const p = limiter.waitForRateLimit();
+      await vi.advanceTimersByTimeAsync(1);
+      // After the short sleep, advance system time past the window so capacity frees up
+      vi.setSystemTime(new Date(base.getTime() + 60_000));
+      await p;
+
+      logSpy.mockRestore();
+
       expect(logs.length).toBeGreaterThanOrEqual(1);
       expect(logs[0]).toEqual(expect.objectContaining({ waitMs: 1, queueSize: 1 }));
     } finally {
-      // restore
-      Date.now = realNow;
+      vi.useRealTimers();
       if (restoreLevel === undefined) delete process.env.LOG_LEVEL; else process.env.LOG_LEVEL = restoreLevel;
     }
   });

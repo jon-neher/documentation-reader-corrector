@@ -25,8 +25,8 @@ import { OpenAIClient, type ChatMessage } from '../../openai/client.js';
 
 describe('OpenAIClient.chat (Responses API mapping)', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
-    createMock.mockClear();
+    // Clear mock call history/state but keep existing implementations and module mocks intact
+    vi.clearAllMocks();
     process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
   });
 
