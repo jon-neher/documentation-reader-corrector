@@ -27,7 +27,6 @@ describe('OpenAIClient.chat (Responses API mapping)', () => {
   beforeEach(() => {
     // Clear mock call history/state but keep existing implementations and module mocks intact
     vi.clearAllMocks();
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
   });
 
   it('builds a minimal Responses request for a plain string prompt and normalizes the response', async () => {

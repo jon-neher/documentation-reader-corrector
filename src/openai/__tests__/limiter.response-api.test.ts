@@ -1,5 +1,18 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Mock the OpenAIClient module so OpenAIRateLimiter's constructor doesn't require env vars.
+// Tests stub `limiter.client` directly; this prevents the constructor from touching the real SDK.
+vi.mock('../../openai/client.js', () => {
+  class OpenAIClient {
+    // No-op constructor; ignore apiKey
+    constructor(_apiKey?: string) {}
+    // Provide a stub `chat` in case any path uses the default client
+    async chat(): Promise<any> {
+      return { id: 'stub', model: 'gpt-4o-mini', created: Math.floor(Date.now() / 1000), content: 'ok', raw: {} };
+    }
+  }
+  return { OpenAIClient };
+});
 import { OpenAIRateLimiter } from '../../openai/OpenAIRateLimiter.js';
 import { BudgetExceededError, InvalidApiKeyError, InvalidRequestError, NetworkTimeoutError, ServerError } from '../../openai/errors.js';
 
@@ -7,7 +20,6 @@ describe('OpenAIRateLimiter + Responses API flows (with stubbed OpenAIClient)', 
   beforeEach(() => {
     // Reset mock state without restoring original implementations
     vi.clearAllMocks();
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
   });
 
   function makeLimiter(rpm = 0, budget = 1000) {
