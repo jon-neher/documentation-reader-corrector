@@ -114,6 +114,8 @@ describe('OpenAIRateLimiter.waitForRateLimit', () => {
     const restoreLevel = process.env.LOG_LEVEL;
     vi.useFakeTimers();
     const base = new Date('2020-01-01T00:00:00.000Z');
+    // Ensure spy/timers/env are always restored
+    let logSpy: ReturnType<typeof vi.spyOn> | undefined;
     try {
       process.env.LOG_LEVEL = 'debug';
       vi.setSystemTime(base);
@@ -127,7 +129,7 @@ describe('OpenAIRateLimiter.waitForRateLimit', () => {
       vi.setSystemTime(new Date(base.getTime() + 59_999));
 
       const logs: any[] = [];
-      const logSpy = vi.spyOn(console, 'log').mockImplementation((line?: any) => {
+      logSpy = vi.spyOn(console, 'log').mockImplementation((line?: any) => {
         try {
           const obj = typeof line === 'string' ? JSON.parse(line) : line;
           if (obj?.msg === 'Rate limit reached; waiting') logs.push(obj);
@@ -141,11 +143,11 @@ describe('OpenAIRateLimiter.waitForRateLimit', () => {
       vi.setSystemTime(new Date(base.getTime() + 60_000));
       await p;
 
-      logSpy.mockRestore();
-
       expect(logs.length).toBeGreaterThanOrEqual(1);
       expect(logs[0]).toEqual(expect.objectContaining({ waitMs: 1, queueSize: 1 }));
     } finally {
+      // Restore spy, timers, and environment even if assertions throw
+      try { logSpy?.mockRestore(); } catch {}
       vi.useRealTimers();
       if (restoreLevel === undefined) delete process.env.LOG_LEVEL; else process.env.LOG_LEVEL = restoreLevel;
     }
