@@ -24,7 +24,7 @@ Relevant files:
 Observed patterns:
 
 - All OpenAI calls ideally go through `OpenAIRateLimiter.makeRequest()` which: (a) enforces RPM; (b) retries on 429/5xx/timeouts; (c) calculates and persists monthly spend (in‑memory or file‑backed); (d) logs inputs/outputs metadata.
-- The wrapper `OpenAIClient.chat()` uses Chat Completions (OpenAI SDK v5) and returns normalized usage.
+- The wrapper `OpenAIClient.chat()` now uses the Responses API and returns normalized usage.
 
 Implications for LangChain:
 
