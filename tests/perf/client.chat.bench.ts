@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { bench, describe } from 'vitest';
+import { bench, describe, vi } from 'vitest';
 
 // Lightweight SDK mock to avoid any real I/O
 const createMock = async () => ({ id: 'r', model: 'gpt-4o-mini', output_text: 'ok', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } });
