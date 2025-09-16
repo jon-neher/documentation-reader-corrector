@@ -5,6 +5,12 @@ npm-debug.log*
 # Build artifacts
 dist/
 
+# Coverage artifacts (generated locally/CI; do not commit)
+coverage/
+.nyc_output/
+coverage-final.json
+lcov.info
+
 # Env files (do not commit secrets)
 .env
 .env.*
