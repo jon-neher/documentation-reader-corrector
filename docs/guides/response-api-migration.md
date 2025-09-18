@@ -57,13 +57,24 @@ console.log(res.content);
 ### Example (messages with an image)
 
 ```ts
+// Note: This uses top-level await (Node ESM). In CJS, wrap in an async function.
+import { OpenAIRateLimiter } from './src/index.js';
+import type { ChatMessage } from './src/openai/client.js';
+
+const limiter = new OpenAIRateLimiter(50, 100);
+
 const messages: ChatMessage[] = [
-  { role: 'user', content: [
+  {
+    role: 'user',
+    content: [
       { type: 'text', text: 'What is in this picture?' },
       { type: 'image_url', image_url: { url: 'https://example.com/cat.png' } },
-    ] }
+    ],
+  },
 ];
+
 const res = await limiter.makeRequest(messages, { model: 'gpt-4o' });
+console.log(res.content);
 ```
 
 ## Validation checklist

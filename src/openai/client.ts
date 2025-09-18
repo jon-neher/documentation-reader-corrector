@@ -86,9 +86,10 @@ export class OpenAIClient {
     const input = (hasExplicitMessages || isPromptArray)
       ? mapChatMessagesToResponsesInput(messages as ChatMessage[])
       : String(prompt);
-    // Cast to `any` to avoid importing deep OpenAI types; we build the correct
-    // shape (`ResponseInput` or `string`) above.
-    const inputForApi: any = input;
+    // Strongly type the input based on the SDK's `responses.create` signature to
+    // catch malformed inputs at compile time without deep-importing SDK internals.
+    type CreateParams = Parameters<InstanceType<typeof OpenAI>['responses']['create']>[0];
+    const inputForApi: CreateParams['input'] = input as CreateParams['input'];
 
     // Responses API call (successor to Chat Completions).
     // Sanitize `extra` so it cannot override core params or inject incompatible fields.
