@@ -192,10 +192,9 @@ Use the rate limiter for production pathways; it calls our Response API client u
 
 ```ts
 // Inside this repo (source):
-// Note: Top-level await requires ESM. This snippet wraps in an async function to be CJS-safe.
-import { OpenAIRateLimiter } from './src/index.js';
-
+// Note: Top-level await requires ESM. This snippet is CJS-safe by using an async function and dynamic import.
 async function main() {
+  const { OpenAIRateLimiter } = await import('./src/index.js');
   const limiter = new OpenAIRateLimiter(50, 100);
   const res = await limiter.makeRequest('Summarize this text:', {
     model: 'gpt-4o-mini',
