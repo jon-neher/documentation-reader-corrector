@@ -93,6 +93,7 @@ OPENAI_MODEL=gpt-4o-mini                         # optional default model
 OPENAI_MAX_RETRIES=3                             # optional; transient retries in limiter
 OPENAI_BUDGET_PERSIST=file                       # optional; persist monthly spend
 OPENAI_BUDGET_FILE=.cache/openai_budget.json     # optional; path for spend file
+OPENAI_PRICING_FALLBACK_MODE=mini|conservative|error  # pricing estimate behavior when a model is missing from src/openai/pricing.ts
 LOG_LEVEL=info                                   # debug|info|warn|error
 
 # Jira
@@ -191,15 +192,23 @@ Use the rate limiter for production pathways; it calls our Response API client u
 
 ```ts
 // Inside this repo (source):
+// Note: Top-level await requires ESM. This snippet wraps in an async function to be CJS-safe.
 import { OpenAIRateLimiter } from './src/index.js';
 
-const limiter = new OpenAIRateLimiter(50, 100);
-const res = await limiter.makeRequest('Summarize this text:', {
-  model: 'gpt-4o-mini',
-  maxTokens: 128,
-  temperature: 0.2,
+async function main() {
+  const limiter = new OpenAIRateLimiter(50, 100);
+  const res = await limiter.makeRequest('Summarize this text:', {
+    model: 'gpt-4o-mini',
+    maxTokens: 128,
+    temperature: 0.2,
+  });
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
-console.log(res.content);
 ```
 
 See docs for details:

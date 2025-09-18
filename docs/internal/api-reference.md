@@ -50,8 +50,11 @@ Notes:
 
 String prompt:
 
+Note: This snippet uses top-level await (Node ESM). For CommonJS, wrap in an async function.
+
 ```ts
-import { OpenAIClient } from '../src/openai/client.js';
+// Run from repository root; import from ./src
+import { OpenAIClient } from './src/openai/client.js';
 
 const client = new OpenAIClient(process.env.OPENAI_API_KEY);
 const res = await client.chat('Hello', { model: 'gpt-4o-mini', maxTokens: 64 });
@@ -60,9 +63,12 @@ console.log(res.content);
 
 Messages with multimodal parts:
 
+Note: This snippet uses top-level await (Node ESM). For CommonJS, wrap in an async function.
+
 ```ts
-import type { ChatMessage } from '../src/openai/client.js';
-import { OpenAIClient } from '../src/openai/client.js';
+// Run from repository root; import from ./src
+import type { ChatMessage } from './src/openai/client.js';
+import { OpenAIClient } from './src/openai/client.js';
 
 const messages: ChatMessage[] = [
   { role: 'system', content: 'Be concise' },
