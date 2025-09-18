@@ -119,6 +119,7 @@ Optional:
 - `OPENAI_MAX_RETRIES` — limiter retries for transient failures (default: `3`)
 - `OPENAI_BUDGET_PERSIST` — set to `file` to persist monthly spend across restarts
 - `OPENAI_BUDGET_FILE` — path for persisted spend (default: `.cache/openai_budget.json`)
+- `OPENAI_PRICING_FALLBACK_MODE` — `mini|conservative|error`; behavior when a model is missing from `src/openai/pricing.ts` (default: `conservative`).
 - `LOG_LEVEL` — `debug|info|warn|error` (default: `info`)
 
 ## Observability
