@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+// IMPORTANT: mock dependency before importing the module under test so the mock is applied at module load.
+vi.mock('../../openai/client.js', () => ({ OpenAIClient: class {} }));
 import { OpenAIRateLimiter } from '../../openai/OpenAIRateLimiter.js';
 
 function monthKey(d = new Date()): string {
@@ -14,6 +16,7 @@ describe('OpenAIRateLimiter persistence + recordUsage', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     fs.rmSync(tmpDir, { recursive: true, force: true });
     fs.mkdirSync(tmpDir, { recursive: true });
   });
@@ -21,8 +24,6 @@ describe('OpenAIRateLimiter persistence + recordUsage', () => {
   it('persists monthly spend to file when OPENAI_BUDGET_PERSIST=file', () => {
     vi.stubEnv('OPENAI_BUDGET_PERSIST', 'file');
     vi.stubEnv('OPENAI_BUDGET_FILE', budgetFile);
-    // Avoid touching the real SDK in constructor
-    vi.mock('../../openai/client.js', () => ({ OpenAIClient: class {} }));
 
     const limiter: any = new OpenAIRateLimiter(0, 1000);
     // First record

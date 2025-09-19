@@ -15,7 +15,9 @@ vi.mock('openai', () => {
 describe('OpenAIClient content normalization edge cases', () => {
   it('truncates oversized unknown JSON tail in message content', async () => {
     const client = new OpenAIClient('sk');
-    const big = Array.from({ length: 20_000 }).map((_, i) => ({ idx: i }));
+    // Use a large string instead of allocating tens of thousands of objects.
+    // This still exceeds the 16KB truncation threshold in `safeJsonBlob` but is faster and lighter.
+    const big = 'x'.repeat(50_000);
     const messages: ChatMessage[] = [
       { role: 'user', content: [{ type: 'something_new', payload: big }] as any },
     ];

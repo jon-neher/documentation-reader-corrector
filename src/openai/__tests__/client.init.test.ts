@@ -17,13 +17,10 @@ vi.mock('openai', () => {
 import { OpenAIClient } from '../../openai/client.js';
 
 describe('OpenAIClient initialization and env handling', () => {
-  const ORIGINAL_ENV = { ...process.env };
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset per-test to avoid bleed-over
-    for (const k of Object.keys(process.env)) {
-      if (k.startsWith('OPENAI_')) delete (process.env as any)[k];
-    }
+    // Reset stubbed env vars between tests to prevent leakage
+    vi.unstubAllEnvs();
     lastCtorArg = undefined;
   });
 
@@ -34,14 +31,14 @@ describe('OpenAIClient initialization and env handling', () => {
   });
 
   it('reads OPENAI_API_KEY from env when not provided', async () => {
-    process.env.OPENAI_API_KEY = 'sk-from-env';
+    vi.stubEnv('OPENAI_API_KEY', 'sk-from-env');
     const client = new OpenAIClient();
     await client.chat('ping');
     expect(lastCtorArg).toEqual({ apiKey: 'sk-from-env' });
   });
 
   it('uses OPENAI_MODEL when options.model omitted', async () => {
-    process.env.OPENAI_MODEL = 'gpt-env';
+    vi.stubEnv('OPENAI_MODEL', 'gpt-env');
     const client = new OpenAIClient('sk');
     await client.chat('hello');
     const [params] = createMock.mock.calls.at(-1)! as [any, any];
