@@ -79,29 +79,34 @@ The AI Support Bot Correction Tracker transforms scattered chat corrections into
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- OpenAI API key
+- Node.js 18+
+- OpenAI API key (Response API)
 - Jira API access
 - GitHub API token
 - Google Chat Apps Script integration (Haley's component)
 
 ### Environment Variables
 ```bash
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MONTHLY_BUDGET=100
+# OpenAI (Response API)
+OPENAI_API_KEY=your_openai_api_key               # required
+OPENAI_MODEL=gpt-4o-mini                         # optional default model
+OPENAI_MAX_RETRIES=3                             # optional; transient retries in limiter
+OPENAI_BUDGET_PERSIST=file                       # optional; persist monthly spend
+OPENAI_BUDGET_FILE=.cache/openai_budget.json     # optional; path for spend file
+OPENAI_PRICING_FALLBACK_MODE=mini|conservative|error  # pricing estimate behavior when a model is missing from src/openai/pricing.ts
+LOG_LEVEL=info                                   # debug|info|warn|error
 
-# Jira Configuration  
+# Jira
 JIRA_HOST=your-company.atlassian.net
 JIRA_USERNAME=your_email@company.com
 JIRA_API_TOKEN=your_jira_token
 JIRA_PROJECT_KEY=SUPPORT
 
-# GitHub Configuration
+# GitHub
 GITHUB_TOKEN=your_github_token
 GITHUB_REPOS=company/help-docs,company/api-docs
 
-# Service Configuration
+# Service (if/when applicable)
 SERVICE_VERSION=1.0.0
 PORT=3000
 ```
@@ -119,14 +124,14 @@ npm install
 cp .env.example .env
 # Edit .env with your API keys and configuration
 
+# TypeScript check
+npm run typecheck
+
 # Run tests
 npm test
 
-# Start development server
-npm run dev
-
-# Start production server
-npm start
+# Optional: verify OpenAI connectivity (requires OPENAI_API_KEY)
+npm run openai:test
 ```
 
 ## 📋 Development Roadmap
@@ -180,6 +185,36 @@ Track development progress: [AI Support Bot Correction Tracker](https://linear.a
 ## Centralized prompts
 
 Parameterizable LangChain `ChatPromptTemplate` definitions with Zod-typed outputs live under `src/prompts/` (see `docs/prompts/README.md`). These templates power correction analysis, documentation generation, and pattern recognition, and include few-shot examples plus version metadata.
+
+## OpenAI Response API quickstart
+
+Use the rate limiter for production pathways; it calls our Response API client under the hood:
+
+```ts
+// Inside this repo (source):
+// Note: Top-level await requires ESM. This snippet is CJS-safe by using an async function and dynamic import.
+async function main() {
+  const { OpenAIRateLimiter } = await import('./src/index.js');
+  const limiter = new OpenAIRateLimiter(50, 100);
+  const res = await limiter.makeRequest('Summarize this text:', {
+    model: 'gpt-4o-mini',
+    maxTokens: 128,
+    temperature: 0.2,
+  });
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+See docs for details:
+
+- Internal API reference: docs/internal/api-reference.md
+- Migration guide: docs/guides/response-api-migration.md
+- Troubleshooting: docs/troubleshooting/response-api.md
 
 ## 📖 API Documentation
 

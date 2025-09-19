@@ -1,5 +1,29 @@
 import OpenAI from 'openai';
 
+/**
+* Thin wrapper around the official OpenAI SDK that uses the Response API
+* (Responses) under the hood while keeping a stable, minimal surface for
+* callers in this repo.
+*
+* Key notes for maintainers:
+* - Input: accepts either a plain string prompt or Chat Completions–style
+*   `messages: ChatMessage[]`. When `messages` are provided, they are mapped
+*   to Responses `input` items (EasyInputMessage). Unsupported/unknown content
+*   parts are preserved in a compact JSON blob so no information is lost.
+* - Output: prefers `output_text` but falls back to the first text item found
+*   in `output` when necessary. Token usage is mapped from Responses
+*   `{ input_tokens, output_tokens, total_tokens }` to our legacy
+*   `{ prompt_tokens, completion_tokens, total_tokens }` shape for
+*   compatibility with existing budgeting/cost code.
+* - Options: `maxTokens` maps to `max_output_tokens` and is omitted when not
+*   specified. Arbitrary supported fields can be passed via `extra`; core
+*   parameters (model, input, temperature, max_output_tokens) always win over
+*   conflicting keys in `extra`.
+* - Roles: content with role `tool` or `function` is normalized to `user` to
+*   avoid attributing tool outputs to the assistant when translated to
+*   Responses messages. Unknown roles also fall back to `user`.
+*/
+
 // Public type surface: keep compatibility with callers that import `ChatMessage`.
 // We intentionally continue exporting the Chat Completions message shape even
 // though the implementation below uses the Responses API under the hood.
@@ -35,6 +59,12 @@ export class OpenAIClient {
     this.sdk = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
   }
 
+  /**
+   * Create a single Response.
+   *
+   * Accepts either a plain string prompt or Chat Completions–style messages.
+   * Maps inputs to the Responses API and returns a normalized result.
+   */
   async chat(prompt: string | ChatMessage[], options: MakeRequestOptions = {}): Promise<OpenAIResponse> {
     // Determine where messages come from. Treat an empty `options.messages` as absent
     // so that a non-empty string `prompt` is not discarded.
@@ -51,16 +81,17 @@ export class OpenAIClient {
 
     // Build Responses API input. If caller passed a plain string via `prompt` and
     // did not also provide messages, pass the string directly for the simplest
-    // request shape. Otherwise, map Chat Completions-style messages to Responses
+    // request shape. Otherwise, map Chat Completions–style messages to Responses
     // `input` items (EasyInputMessage objects).
     const input = (hasExplicitMessages || isPromptArray)
       ? mapChatMessagesToResponsesInput(messages as ChatMessage[])
       : String(prompt);
-    // Cast to `any` to avoid importing deep OpenAI types; we build the correct
-    // shape (`ResponseInput` or `string`) above.
-    const inputForApi: any = input;
+    // Strongly type the input based on the SDK's `responses.create` signature to
+    // catch malformed inputs at compile time without deep-importing SDK internals.
+    type CreateParams = Parameters<InstanceType<typeof OpenAI>['responses']['create']>[0];
+    const inputForApi: CreateParams['input'] = input as CreateParams['input'];
 
-    // Responses API call (replacement for Chat Completions).
+    // Responses API call (successor to Chat Completions).
     // Sanitize `extra` so it cannot override core params or inject incompatible fields.
     // Omit `max_output_tokens` entirely when not provided to avoid sending undefined fields.
     const baseParams = {
