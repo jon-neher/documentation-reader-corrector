@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RunnableLambda } from '@langchain/core/runnables';
 import { AIMessage } from '@langchain/core/messages';
 import { createCorrectionAnalysisChain } from '../../src/analysis/correction/chain.js';
@@ -38,8 +38,16 @@ function captureOnce(expectedMsg: string, fn: () => Promise<void> | void): Promi
 }
 
 describe('Correction chain error logging', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv('OPENAI_API_KEY', 'sk-test');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('logs LC chain error with sanitized fields when parsing fails', async () => {
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
     // Fake model returns invalid JSON so StructuredOutputParser throws
     const fakeModel = RunnableLambda.from(async () => new AIMessage({ content: '{not json' }) as any);
     const limiter = new OpenAIRateLimiter(0, 1000);

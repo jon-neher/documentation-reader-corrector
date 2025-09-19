@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RunnableLambda } from '@langchain/core/runnables';
 import { AIMessage } from '@langchain/core/messages';
 import { createCorrectionAnalysisChain } from '../../src/analysis/correction/chain.js';
@@ -16,7 +16,14 @@ function makeFakeModel(result: CorrectionAnalysis, usage = { input_tokens: 20, o
 
 describe('Correction analysis chain scenarios (fake model)', () => {
   // Ensure limiter constructor doesn't fail on missing API key
-  process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv('OPENAI_API_KEY', 'sk-test');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   it('navigation-style correction → incorrect_procedure', async () => {
     const expected: CorrectionAnalysis = {
       classification: 'incorrect_procedure',

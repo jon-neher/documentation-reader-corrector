@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from 'vitest';
 
 describe('pricing: estimateCostUSD + fallbacks', () => {
   const importFresh = async () => {
+    // Ensure a clean environment for each fresh import to avoid order-dependent behavior.
+    // Preserve a caller-provided fallback mode (if any) across the cleanup so tests can
+    // intentionally control behavior by stubbing before calling importFresh().
+    const desiredMode = process.env.OPENAI_PRICING_FALLBACK_MODE;
+    vi.unstubAllEnvs();
+    if (desiredMode !== undefined) vi.stubEnv('OPENAI_PRICING_FALLBACK_MODE', desiredMode);
     vi.resetModules();
     const mod = await import('../../openai/pricing.js');
     return mod as typeof import('../../openai/pricing.js');

@@ -1,8 +1,8 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi } from 'vitest';
-import { OpenAIClient, type ChatMessage } from '../../openai/client.js';
 
-// Mock the OpenAI SDK to observe request params and control responses.
+// Mock the OpenAI SDK BEFORE importing any module that depends on it.
+// This avoids relying on hoisting and ensures the mock is applied at module load.
 const createMock: any = vi.fn(async (params: any) => ({ id: 'r', model: params.model, usage: {} }));
 vi.mock('openai', () => {
   class OpenAI {
@@ -11,6 +11,8 @@ vi.mock('openai', () => {
   }
   return { default: OpenAI };
 });
+
+import { OpenAIClient, type ChatMessage } from '../../openai/client.js';
 
 describe('OpenAIClient content normalization edge cases', () => {
   it('truncates oversized unknown JSON tail in message content', async () => {
