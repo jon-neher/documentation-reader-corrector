@@ -8,7 +8,7 @@ Branch: ai-jon-48-coordinate-response-api-and-langchain-in
 - Micro-benchmarks using Vitest `bench`:
   - `tests/perf/client.chat.bench.ts` — OpenAIClient.chat request mapping (Response API)
   - `tests/perf/correction.chain.bench.ts` — Correction analysis chain end-to-end with fake model
-- Concurrency + memory harness (`bun`):
+- Concurrency + memory harness (Node + tsx):
   - `scripts/perf/run_correction_bench.ts` runs N requests with concurrency C using the correction analysis chain with a simulated provider delay (default `SIM_MS=25`).
   - Logs a JSON summary with latency percentiles, throughput, and memory deltas.
 

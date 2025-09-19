@@ -1,8 +1,8 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /*
   Correction Analysis Bench Harness
 
-  - Runs the correction analysis chain with a fake model to measure overhead of:
+  - Runs the correction analysis chain with a fake model (default) to measure overhead of:
     LangChain pipeline + rate limit adapter + observability bridge + StructuredOutputParser.
   - Produces a JSON summary with latency percentiles, throughput, and memory deltas.
 
@@ -63,7 +63,10 @@ async function runBench(): Promise<Stats> {
   process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
 
   const limiter = new OpenAIRateLimiter(0, 1_000_000);
-  const chain = createCorrectionAnalysisChain({ modelRunnable: makeFakeModel(simMs), limiter });
+  const useReal = process.env.REAL === '1';
+  const chain = useReal
+    ? createCorrectionAnalysisChain({ limiter })
+    : createCorrectionAnalysisChain({ modelRunnable: makeFakeModel(simMs), limiter });
 
   const latencies: number[] = [];
   const startTime = Date.now();
