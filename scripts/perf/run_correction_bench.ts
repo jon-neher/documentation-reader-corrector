@@ -11,6 +11,8 @@
     CONCURRENCY=20     Concurrent in-flight requests (default 20)
     SIM_MS=25          Simulated provider latency inside fake model (default 25ms)
     LOG_LEVEL=warn     Keep logs quiet during benchmark (default warn)
+    RAW_LATENCIES=1    Include raw per-request latencies array in JSON output (default: omitted)
+    PRETTY_JSON=1      Pretty-print JSON output (default: compact)
 
   Optionally set OPENAI_API_KEY + REAL=1 to run a small sample with a real model; see docs.
 */
@@ -19,11 +21,10 @@ import { AIMessage } from '@langchain/core/messages';
 import { createCorrectionAnalysisChain } from '../../src/analysis/correction/chain.js';
 import { OpenAIRateLimiter } from '../../src/openai/OpenAIRateLimiter.js';
 
-type Stats = {
+type StatsBase = {
   runs: number;
   concurrency: number;
   simMs: number;
-  latencies: number[];
   p50: number;
   p95: number;
   p99: number;
@@ -32,6 +33,8 @@ type Stats = {
   heapUsedDeltaMB: number;
   rssDeltaMB: number;
 };
+type StatsWithLatencies = StatsBase & { latencies: number[] };
+type Stats = StatsBase | StatsWithLatencies;
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -118,11 +121,13 @@ async function runBench(): Promise<Stats> {
   const throughputRps = (runs / totalMs) * 1000;
   const heapUsedDeltaMB = (memAfter.heapUsed - memBefore.heapUsed) / (1024 * 1024);
   const rssDeltaMB = (memAfter.rss - memBefore.rss) / (1024 * 1024);
-
-  return { runs, concurrency, simMs, latencies, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
+  const includeLatencies = process.env.RAW_LATENCIES === '1';
+  const base: StatsBase = { runs, concurrency, simMs, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
+  return includeLatencies ? { ...base, latencies } : base;
 }
 
 runBench().then((stats) => {
   // eslint-disable-next-line no-console
-  console.log(JSON.stringify({ bench: 'correction-analysis', ts: new Date().toISOString(), ...stats }, null, 2));
+  const pretty = process.env.PRETTY_JSON === '1' ? 2 : 0;
+  console.log(JSON.stringify({ bench: 'correction-analysis', ts: new Date().toISOString(), ...stats }, null, pretty));
 });
