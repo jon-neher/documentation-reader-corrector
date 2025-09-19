@@ -25,6 +25,7 @@ type StatsBase = {
   runs: number;
   concurrency: number;
   simMs: number;
+  errors: number;
   p50: number;
   p95: number;
   p99: number;
@@ -43,7 +44,7 @@ function percentile(sorted: number[], p: number): number {
 }
 
 function makeFakeModel(simMs = 25) {
-  return RunnableLambda.from(async () => {
+  return RunnableLambda.from<unknown, AIMessage>(async () => {
     if (simMs > 0) await new Promise((r) => setTimeout(r, simMs));
     const payload = {
       classification: 'other',
@@ -54,7 +55,7 @@ function makeFakeModel(simMs = 25) {
     return new AIMessage({
       content: JSON.stringify(payload),
       usage_metadata: { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
-    }) as any;
+    });
   });
 }
 
@@ -78,6 +79,13 @@ async function runBench(): Promise<Stats> {
   let inFlight = 0;
   let launched = 0;
   let completed = 0;
+  let errors = 0;
+
+  // Promise-based completion: resolve when all runs complete
+  let resolveDone: (() => void) | null = null;
+  const done = new Promise<void>((r) => {
+    resolveDone = r;
+  });
 
   const next = async () => {
     if (launched >= runs) return;
@@ -92,11 +100,15 @@ async function runBench(): Promise<Stats> {
         right: null,
         reason: null,
       });
+    } catch {
+      // Count and swallow errors to avoid unhandled promise rejections in fire-and-forget tasks
+      errors++;
     } finally {
       const t1 = performance.now();
       latencies[idx] = t1 - t0;
       completed++;
       inFlight--;
+      if (completed === runs && resolveDone) resolveDone();
       if (launched < runs) void next();
     }
   };
@@ -105,10 +117,9 @@ async function runBench(): Promise<Stats> {
   const starters = Math.min(concurrency, runs);
   for (let i = 0; i < starters; i++) void next();
 
-  // Wait for completion
-  while (completed < runs) {
-    await new Promise((r) => setTimeout(r, 5));
-  }
+  // If there are zero runs, resolve immediately; otherwise await completion without polling
+  if (runs === 0 && resolveDone) resolveDone();
+  await done;
 
   const totalMs = Date.now() - startTime;
   const memAfter = process.memoryUsage();
@@ -117,12 +128,13 @@ async function runBench(): Promise<Stats> {
   const p50 = percentile(sorted, 50);
   const p95 = percentile(sorted, 95);
   const p99 = percentile(sorted, 99);
-  const avgMs = sorted.reduce((a, b) => a + b, 0) / sorted.length;
-  const throughputRps = (runs / totalMs) * 1000;
+  const count = sorted.length;
+  const avgMs = count > 0 ? sorted.reduce((a, b) => a + b, 0) / count : 0;
+  const throughputRps = totalMs > 0 ? (runs / totalMs) * 1000 : 0;
   const heapUsedDeltaMB = (memAfter.heapUsed - memBefore.heapUsed) / (1024 * 1024);
   const rssDeltaMB = (memAfter.rss - memBefore.rss) / (1024 * 1024);
   const includeLatencies = process.env.RAW_LATENCIES === '1';
-  const base: StatsBase = { runs, concurrency, simMs, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
+  const base: StatsBase = { runs, concurrency, simMs, errors, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
   return includeLatencies ? { ...base, latencies } : base;
 }
 
