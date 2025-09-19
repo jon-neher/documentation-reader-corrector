@@ -10,8 +10,19 @@ export default defineConfig({
       reportsDirectory: 'coverage',
       // Include files even if they don't have direct tests
       all: true,
-      // Proactively track prompt modules in coverage
-      include: ['src/prompts/**/*.ts'],
+      // Track coverage for core domains exercised by tests
+      include: [
+        'src/openai/**/*.ts',
+        'src/langchain/**/*.ts',
+        'src/analysis/**/*.ts',
+        'src/prompts/**/*.ts',
+      ],
+      exclude: [
+        '**/__tests__/**',
+        '**/*.test.ts',
+        '**/*.spec.ts',
+        '**/*.mock.ts',
+      ],
     },
   },
 });

@@ -14,7 +14,7 @@ vi.mock('../../openai/client.js', () => {
   return { OpenAIClient };
 });
 import { OpenAIRateLimiter } from '../../openai/OpenAIRateLimiter.js';
-import { BudgetExceededError, InvalidApiKeyError, InvalidRequestError, NetworkTimeoutError, ServerError } from '../../openai/errors.js';
+import { BudgetExceededError, InvalidApiKeyError, InvalidRequestError, NetworkTimeoutError, ServerError, RateLimitError } from '../../openai/errors.js';
 
 describe('OpenAIRateLimiter + Responses API flows (with stubbed OpenAIClient)', () => {
   beforeEach(() => {
@@ -118,6 +118,30 @@ describe('OpenAIRateLimiter + Responses API flows (with stubbed OpenAIClient)', 
     const err: any = { name: 'AbortError', message: 'timed out' };
     limiter.client = { chat: vi.fn().mockRejectedValue(err) };
     await expect(limiter.makeRequest('x', { maxRetries: 1 })).rejects.toBeInstanceOf(NetworkTimeoutError);
+  });
+
+  it('surfaces RateLimitError with retryAfterMs when 429 persists (HTTP-date header)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2020-01-01T00:00:00.000Z'));
+
+    const limiter = makeLimiter(0, 1000);
+    const in2s = new Date(Date.now() + 2000).toUTCString();
+    const rateErr: any = {
+      status: 429,
+      message: 'limited',
+      response: { headers: { get: (k: string) => (k.toLowerCase() === 'retry-after' ? in2s : null) } },
+    };
+    const chat = vi.fn().mockRejectedValue(rateErr);
+    limiter.client = { chat };
+    try {
+      await limiter.makeRequest('x', { maxRetries: 1 });
+      throw new Error('expected RateLimitError');
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(RateLimitError);
+      expect(e.retryAfterMs).toBe(2000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
