@@ -72,6 +72,7 @@ async function runBench(): Promise<Stats> {
     ? createCorrectionAnalysisChain({ limiter })
     : createCorrectionAnalysisChain({ modelRunnable: makeFakeModel(simMs), limiter });
 
+  // Latencies for successful invokes only
   const latencies: number[] = [];
   const startTime = Date.now();
   const memBefore = process.memoryUsage();
@@ -90,8 +91,9 @@ async function runBench(): Promise<Stats> {
   const next = async () => {
     if (launched >= runs) return;
     inFlight++;
-    const idx = launched++;
+    launched++;
     const t0 = performance.now();
+    let ok = true;
     try {
       await chain.invoke({
         originalQuestion: 'Q',
@@ -103,9 +105,10 @@ async function runBench(): Promise<Stats> {
     } catch {
       // Count and swallow errors to avoid unhandled promise rejections in fire-and-forget tasks
       errors++;
+      ok = false;
     } finally {
       const t1 = performance.now();
-      latencies[idx] = t1 - t0;
+      if (ok) latencies.push(t1 - t0);
       completed++;
       inFlight--;
       if (completed === runs && resolveDone) resolveDone();

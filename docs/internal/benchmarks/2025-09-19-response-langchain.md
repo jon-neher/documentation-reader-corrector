@@ -51,7 +51,11 @@ $ npm run perf:correction
 
 - Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL`.
 - For a smoke integration: run the skipped ChatOpenAI test by exporting `OPENAI_API_KEY` (see `src/langchain/__tests__/withOpenAIRateLimit.test.ts`).
-- For ad-hoc timing: set `REAL=1` and swap the fake model in a local variant of the harness; keep runs small to respect budgets.
+- For ad-hoc timing: set `REAL=1` and run the existing harness (e.g., `npm run perf:correction`); keep `RUNS` small (for example, `RUNS=20` or `RUNS=50`) to respect budgets. Example:
+
+  ```sh
+  REAL=1 RUNS=20 npm run perf:correction
+  ```
 
 ## Files
 
