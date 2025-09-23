@@ -1,7 +1,8 @@
 /// <reference types="vitest" />
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 // IMPORTANT: mock dependency before importing the module under test so the mock is applied at module load.
 vi.mock('../../openai/client.js', () => ({ OpenAIClient: class {} }));
 import { OpenAIRateLimiter } from '../../openai/OpenAIRateLimiter.js';
@@ -11,14 +12,22 @@ function monthKey(d = new Date()): string {
 }
 
 describe('OpenAIRateLimiter persistence + recordUsage', () => {
-  const tmpDir = path.join(process.cwd(), '.tmp-test-budget');
-  const budgetFile = path.join(tmpDir, 'budget.json');
+  let tmpDir: string = '';
+  let budgetFile: string = '';
 
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    fs.mkdirSync(tmpDir, { recursive: true });
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openai-budget-'));
+    budgetFile = path.join(tmpDir, 'budget.json');
+  });
+
+  afterEach(() => {
+    // Clean up the per-test temp directory and env stubs
+    if (tmpDir) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+    vi.unstubAllEnvs();
   });
 
   it('persists monthly spend to file when OPENAI_BUDGET_PERSIST=file', () => {
