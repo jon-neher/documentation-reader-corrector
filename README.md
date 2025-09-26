@@ -215,6 +215,9 @@ See docs for details:
 - Internal API reference: docs/internal/api-reference.md
 - Migration guide: docs/guides/response-api-migration.md
 - Troubleshooting: docs/troubleshooting/response-api.md
+- Integrated architecture: docs/guides/architecture-response-langchain.md
+- Monitoring & alerting: docs/monitoring/response-langchain.md
+- Team quickstart: docs/training/quickstart.md
 
 ## 📖 API Documentation
 
