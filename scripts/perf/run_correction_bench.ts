@@ -66,7 +66,8 @@ async function runBench(): Promise<Stats> {
   const runs = Number.isFinite(rawRuns) ? Math.max(0, Math.trunc(rawRuns)) : 200;
   const rawConcurrency = Number(process.env.CONCURRENCY ?? 20);
   const concurrency = Math.max(1, Number.isFinite(rawConcurrency) ? Math.trunc(rawConcurrency) : 20);
-  const simMs = Number(process.env.SIM_MS || 25);
+  const rawSim = Number(process.env.SIM_MS ?? 25);
+  const simMs = Math.max(0, Number.isFinite(rawSim) ? Math.trunc(rawSim) : 25);
   process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'warn';
   process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
 
