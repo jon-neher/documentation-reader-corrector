@@ -24,7 +24,9 @@ import { OpenAIRateLimiter } from '../../src/openai/OpenAIRateLimiter.js';
 type StatsBase = {
   runs: number;
   concurrency: number;
-  simMs: number;
+  // When REAL=1, simulated delay doesn't apply. Emit `simMs: null` and `real: true` for clarity.
+  simMs: number | null;
+  real: boolean;
   errors: number;
   successes: number;
   p50: number;
@@ -79,10 +81,10 @@ async function runBench(): Promise<Stats> {
 
   // Latencies for successful invokes only
   const latencies: number[] = [];
-  const startTime = Date.now();
+  // Use a single monotonic clock source for timing to avoid cross-clock drift
+  const tStart = performance.now();
   const memBefore = process.memoryUsage();
 
-  let inFlight = 0;
   let launched = 0;
   let completed = 0;
   let errors = 0;
@@ -95,7 +97,6 @@ async function runBench(): Promise<Stats> {
 
   const next = async () => {
     if (launched >= runs) return;
-    inFlight++;
     launched++;
     const t0 = performance.now();
     let ok = true;
@@ -115,7 +116,6 @@ async function runBench(): Promise<Stats> {
       const t1 = performance.now();
       if (ok) latencies.push(t1 - t0);
       completed++;
-      inFlight--;
       if (completed === runs && resolveDone) resolveDone();
       if (launched < runs) void next();
     }
@@ -129,7 +129,7 @@ async function runBench(): Promise<Stats> {
   if (runs === 0 && resolveDone) resolveDone();
   await done;
 
-  const totalMs = Date.now() - startTime;
+  const totalMs = performance.now() - tStart;
   const memAfter = process.memoryUsage();
 
   const successes = latencies.length;
@@ -143,7 +143,21 @@ async function runBench(): Promise<Stats> {
   const heapUsedDeltaMB = (memAfter.heapUsed - memBefore.heapUsed) / (1024 * 1024);
   const rssDeltaMB = (memAfter.rss - memBefore.rss) / (1024 * 1024);
   const includeLatencies = process.env.RAW_LATENCIES === '1';
-  const base: StatsBase = { runs, concurrency, simMs, errors, successes, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
+  const base: StatsBase = {
+    runs,
+    concurrency,
+    simMs: useReal ? null : simMs,
+    real: useReal,
+    errors,
+    successes,
+    p50,
+    p95,
+    p99,
+    avgMs,
+    throughputRps,
+    heapUsedDeltaMB,
+    rssDeltaMB,
+  };
   return includeLatencies ? { ...base, latencies } : base;
 }
 

@@ -10,7 +10,7 @@ This is the shortest path to productive use of either approach. Links point to d
 
 ## Option A: Direct Response API (thin wrapper + limiter)
 
-```
+```ts
 import { OpenAIRateLimiter } from './src/openai/OpenAIRateLimiter.js';
 
 const limiter = new OpenAIRateLimiter(60 /* rpm */, 50 /* USD monthly budget */);
@@ -23,7 +23,7 @@ console.log(res.content);
 
 ## Option B: LangChain chain (adapter + observability)
 
-```
+```ts
 import { analyzeCorrection } from './src/analysis/correction/chain.js';
 import { OpenAIRateLimiter } from './src/openai/OpenAIRateLimiter.js';
 

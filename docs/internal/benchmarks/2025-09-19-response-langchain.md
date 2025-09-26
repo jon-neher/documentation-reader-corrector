@@ -11,8 +11,9 @@ Branch: ai-jon-48-coordinate-response-api-and-langchain-in
 - Concurrency + memory harness (Node + tsx):
   - `scripts/perf/run_correction_bench.ts` runs N requests with concurrency C using the correction analysis chain with a simulated provider delay (default `SIM_MS=25`).
   - Logs a JSON summary with latency percentiles, throughput, and memory deltas.
+  - In `REAL=1` mode, the JSON sets `real: true` and `simMs: null` to indicate no simulated delay.
 
-All runs use a fake model (no network). This isolates framework/adapter overhead. A small real-model integration test remains available but is skipped unless `OPENAI_API_KEY` is set.
+The results below were generated with a fake model (no network) to isolate framework/adapter overhead. The harness also supports real-model runs via `REAL=1` (keep `RUNS` small to respect budgets).
 
 ## Results (devbox)
 
