@@ -26,6 +26,7 @@ type StatsBase = {
   concurrency: number;
   simMs: number;
   errors: number;
+  successes: number;
   p50: number;
   p95: number;
   p99: number;
@@ -60,8 +61,11 @@ function makeFakeModel(simMs = 25) {
 }
 
 async function runBench(): Promise<Stats> {
-  const runs = Number(process.env.RUNS || 200);
-  const concurrency = Number(process.env.CONCURRENCY || 20);
+  // Normalize env inputs: ensure non-negative runs and at least 1 concurrency to avoid hangs
+  const rawRuns = Number(process.env.RUNS ?? 200);
+  const runs = Number.isFinite(rawRuns) ? Math.max(0, Math.trunc(rawRuns)) : 200;
+  const rawConcurrency = Number(process.env.CONCURRENCY ?? 20);
+  const concurrency = Math.max(1, Number.isFinite(rawConcurrency) ? Math.trunc(rawConcurrency) : 20);
   const simMs = Number(process.env.SIM_MS || 25);
   process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'warn';
   process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
@@ -127,17 +131,18 @@ async function runBench(): Promise<Stats> {
   const totalMs = Date.now() - startTime;
   const memAfter = process.memoryUsage();
 
+  const successes = latencies.length;
   const sorted = [...latencies].sort((a, b) => a - b);
   const p50 = percentile(sorted, 50);
   const p95 = percentile(sorted, 95);
   const p99 = percentile(sorted, 99);
-  const count = sorted.length;
-  const avgMs = count > 0 ? sorted.reduce((a, b) => a + b, 0) / count : 0;
-  const throughputRps = totalMs > 0 ? (runs / totalMs) * 1000 : 0;
+  const avgMs = successes > 0 ? sorted.reduce((a, b) => a + b, 0) / successes : 0;
+  // Throughput: base on successful invokes to avoid overstating when errors occur
+  const throughputRps = totalMs > 0 ? (successes / totalMs) * 1000 : 0;
   const heapUsedDeltaMB = (memAfter.heapUsed - memBefore.heapUsed) / (1024 * 1024);
   const rssDeltaMB = (memAfter.rss - memBefore.rss) / (1024 * 1024);
   const includeLatencies = process.env.RAW_LATENCIES === '1';
-  const base: StatsBase = { runs, concurrency, simMs, errors, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
+  const base: StatsBase = { runs, concurrency, simMs, errors, successes, p50, p95, p99, avgMs, throughputRps, heapUsedDeltaMB, rssDeltaMB };
   return includeLatencies ? { ...base, latencies } : base;
 }
 
