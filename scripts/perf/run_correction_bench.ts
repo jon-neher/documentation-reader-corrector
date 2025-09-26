@@ -71,11 +71,22 @@ async function runBench(): Promise<Stats> {
   const rawSim = Number(process.env.SIM_MS ?? 25);
   const simMs = Math.max(0, Number.isFinite(rawSim) ? Math.trunc(rawSim) : 25);
   process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'warn';
-  process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-test';
+  // Guard REAL mode: require a non-stub API key; otherwise fall back to fake model.
+  const requestedReal = process.env.REAL === '1';
+  const existingKey = process.env.OPENAI_API_KEY;
+  const hasValidKey = !!existingKey && existingKey !== 'sk-test';
+  const effectiveReal = requestedReal && hasValidKey;
+  if (!effectiveReal) {
+    // For any simulated run (including REAL fallback), ensure a stub key to avoid SDK init errors.
+    process.env.OPENAI_API_KEY = existingKey || 'sk-test';
+  }
+  if (requestedReal && !effectiveReal) {
+    // eslint-disable-next-line no-console
+    console.error('REAL=1 requires a valid OPENAI_API_KEY; falling back to fake model');
+  }
 
   const limiter = new OpenAIRateLimiter(0, 1_000_000);
-  const useReal = process.env.REAL === '1';
-  const chain = useReal
+  const chain = effectiveReal
     ? createCorrectionAnalysisChain({ limiter })
     : createCorrectionAnalysisChain({ modelRunnable: makeFakeModel(simMs), limiter });
 
@@ -146,8 +157,8 @@ async function runBench(): Promise<Stats> {
   const base: StatsBase = {
     runs,
     concurrency,
-    simMs: useReal ? null : simMs,
-    real: useReal,
+    simMs: effectiveReal ? null : simMs,
+    real: effectiveReal,
     errors,
     successes,
     p50,
