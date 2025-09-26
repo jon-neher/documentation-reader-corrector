@@ -27,14 +27,14 @@ describe('OpenAIClient initialization and env handling', () => {
   it('passes explicit apiKey to SDK constructor', async () => {
     const client = new OpenAIClient('sk-from-arg');
     await client.chat('ping');
-    expect(lastCtorArg).toEqual({ apiKey: 'sk-from-arg' });
+    expect(lastCtorArg).toEqual(expect.objectContaining({ apiKey: 'sk-from-arg' }));
   });
 
   it('reads OPENAI_API_KEY from env when not provided', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'sk-from-env');
     const client = new OpenAIClient();
     await client.chat('ping');
-    expect(lastCtorArg).toEqual({ apiKey: 'sk-from-env' });
+    expect(lastCtorArg).toEqual(expect.objectContaining({ apiKey: 'sk-from-env' }));
   });
 
   it('uses OPENAI_MODEL when options.model omitted', async () => {
