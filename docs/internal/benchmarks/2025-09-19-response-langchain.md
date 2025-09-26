@@ -33,12 +33,46 @@ Harness (200 runs, concurrency 20, SIM_MS=25):
 
 Raw summary (example):
 
+```bash
+npm run perf:correction
 ```
-$ npm run perf:correction
-{ "bench": "correction-analysis", "runs": 200, "concurrency": 20, "simMs": 25,
+
+```json
+{ "bench": "correction-analysis", "ts": "<ISO-8601 timestamp>",
+  "runs": 200, "concurrency": 20, "real": false, "simMs": 25,
+  "successes": 200, "errors": 0,
   "p50": 25.745, "p95": 60.434, "p99": 67.304, "avgMs": 29.394, "throughputRps": 653.595,
   "heapUsedDeltaMB": 9.909, "rssDeltaMB": 22.816 }
 ```
+
+# To include raw per-request latencies and pretty printing:
+```bash
+RAW_LATENCIES=1 PRETTY_JSON=1 npm run perf:correction
+```
+
+# On Windows (CMD):
+```cmd
+set RAW_LATENCIES=1 && set PRETTY_JSON=1 && npm run perf:correction
+```
+
+# On Windows (PowerShell):
+```powershell
+$env:RAW_LATENCIES = "1"; $env:PRETTY_JSON = "1"; npm run perf:correction
+```
+
+# Cross-platform (any shell) via cross-env:
+```bash
+npx cross-env RAW_LATENCIES=1 PRETTY_JSON=1 npm run perf:correction
+```
+
+Legend:
+- `ts`: ISO 8601 timestamp (UTC, or with timezone offset) for when the run started
+- `real`: whether a real model was used (`true`) vs a synthetic latency (`false`)
+- `successes`/`errors`: outcome counts; should sum to `runs`
+- `p50`, `p95`, `p99`: latency percentiles in milliseconds
+- `avgMs`: average end-to-end latency in milliseconds
+- `throughputRps`: achieved throughput (requests per second)
+- `heapUsedDeltaMB`, `rssDeltaMB`: memory deltas in megabytes over the run window
 
 ## Interpretation vs Final Validation Criteria
 
