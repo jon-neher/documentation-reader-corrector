@@ -16,8 +16,8 @@ import { OpenAIClient, type ChatMessage } from '../../openai/client.js';
 
 beforeEach(() => {
   // Ensure the SDK mock and any per-test mockOnce behavior don't leak between tests
-  vi.resetAllMocks();
-  createMock.mockImplementation(async (params: any) => ({ id: 'r', model: params.model, usage: {} }));
+  createMock.mockReset();
+  createMock.mockImplementation(async (params: unknown) => ({ id: 'r', model: (params as any).model, usage: {} }));
 });
 
 describe('OpenAIClient content normalization edge cases', () => {
