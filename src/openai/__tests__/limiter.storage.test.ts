@@ -28,6 +28,9 @@ describe('OpenAIRateLimiter persistence + recordUsage', () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
     vi.unstubAllEnvs();
+    // Ensure any spies created within a test (e.g., console.warn, estimateCostUSD)
+    // are restored to avoid leakage into other suites.
+    vi.restoreAllMocks();
   });
 
   it('persists monthly spend to file when OPENAI_BUDGET_PERSIST=file', () => {

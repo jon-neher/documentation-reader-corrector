@@ -4,37 +4,33 @@ import { AIMessage } from '@langchain/core/messages';
 import { createCorrectionAnalysisChain } from '../../src/analysis/correction/chain.js';
 import { OpenAIRateLimiter } from '../../src/openai/OpenAIRateLimiter.js';
 
-function captureOnce(expectedMsg: string, fn: () => Promise<void> | void): Promise<any> {
-  return new Promise(async (resolve, reject) => {
-    const origLog = console.log;
-    const origErr = console.error;
-    try {
-      let captured: any | undefined;
-      // eslint-disable-next-line no-console
-      console.log = (line?: any) => {
+async function captureOnce(expectedMsg: string, fn: () => Promise<void> | void) {
+  const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    await fn();
+    const entries = [
+      ...logSpy.mock.calls.map((args, i) => ({ args, order: logSpy.mock.invocationCallOrder?.[i] ?? i })),
+      ...errSpy.mock.calls.map((args, i) => ({ args, order: errSpy.mock.invocationCallOrder?.[i] ?? i })),
+      ...warnSpy.mock.calls.map((args, i) => ({ args, order: warnSpy.mock.invocationCallOrder?.[i] ?? i })),
+    ].sort((a, b) => a.order - b.order);
+    for (const { args } of entries) {
+      for (const arg of args) {
         try {
-          const obj = typeof line === 'string' ? JSON.parse(line) : line;
-          if (obj && obj.msg === expectedMsg) captured = obj;
-        } catch {}
-      };
-      // Also capture error-level logs (logger.error writes to console.error)
-      // eslint-disable-next-line no-console
-      console.error = (line?: any) => {
-        try {
-          const obj = typeof line === 'string' ? JSON.parse(line) : line;
-          if (obj && obj.msg === expectedMsg) captured = obj;
-        } catch {}
-      };
-      await fn();
-      console.log = origLog;
-      console.error = origErr;
-      resolve(captured);
-    } catch (err) {
-      console.log = origLog;
-      console.error = origErr;
-      reject(err);
+          const obj = typeof arg === 'string' ? JSON.parse(arg) : arg;
+          if (obj && (obj as any).msg === expectedMsg) return obj;
+        } catch {
+          // ignore non-JSON console lines
+        }
+      }
     }
-  });
+    return undefined;
+  } finally {
+    logSpy.mockRestore();
+    errSpy.mockRestore();
+    warnSpy.mockRestore();
+  }
 }
 
 describe('Correction chain error logging', () => {
