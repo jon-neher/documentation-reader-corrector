@@ -12,3 +12,12 @@ export type {
 } from './analysis/correction/types.js';
 export { withOpenAIRateLimit } from './langchain/RateLimitedChatOpenAI.js';
 export * from './prompts/index.js';
+export {
+  createJiraClient,
+  readJiraEnv,
+  testConnection as testJiraConnection,
+  checkProjectPermissions as checkJiraProjectPermissions,
+  verifyProjectAndIssueType as verifyJiraProjectAndIssueType,
+  assertReady as assertJiraReady,
+} from './jira/client.js';
+export * from './jira/errors.js';
