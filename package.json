@@ -17,15 +17,18 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench",
-    "perf:correction": "tsx scripts/perf/run_correction_bench.ts"
+    "perf:correction": "tsx scripts/perf/run_correction_bench.ts",
+    "jira:test": "tsx scripts/jira/test_connection.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.29",
     "@langchain/openai": "^0.3.8",
+    "jira-client": "^8.2.2",
     "openai": "^5.20.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/jira-client": "^7.1.9",
     "@types/node": "^18.19.0",
     "@vitest/coverage-v8": "^3.2.4",
     "tsx": "^4.20.5",
