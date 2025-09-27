@@ -73,6 +73,87 @@ describe('parseCorrectionInput', () => {
     const bad = { ...base, correctionFields: { wrong: long, right: 'x', reason: 'y' } } as any;
     expect(() => parseCorrectionInput(bad)).toThrow(CorrectionInputError);
   });
+
+  it('derives fields from messages[] when scalars are missing', () => {
+    const input = {
+      threadContext: {
+        messages: [
+          { role: 'user', text: 'How do I reset my partner dashboard password?' },
+          { role: 'assistant', text: 'You can reset passwords in Account Settings under Security.' },
+        ],
+        timestamp: '2024-07-15T10:30:00Z',
+      },
+      correctionFields: base.correctionFields,
+    } as const;
+
+    const processed = parseCorrectionInput(input);
+    expect(processed.originalQuestion).toBe('How do I reset my partner dashboard password?');
+    expect(processed.botResponse).toBe(
+      'You can reset passwords in Account Settings under Security.',
+    );
+    expect(processed.metadata.derived?.originalQuestion).toBe('fromMessages');
+    expect(processed.metadata.derived?.botResponse).toBe('fromMessages');
+  });
+
+  it('accepts minimal payload and falls back when nothing to derive', () => {
+    const input = {
+      correctionFields: {
+        wrong: 'Account Settings → Security',
+        right: 'Partner Center → Profile page',
+        reason: 'UI changed in 2024.07',
+      },
+    } as const;
+    const processed = parseCorrectionInput(input);
+    expect(processed.originalQuestion).toBe('Unknown');
+    expect(processed.botResponse).toBe('Account Settings → Security');
+    expect(processed.metadata.derived?.originalQuestion).toBe('missing');
+    expect(processed.metadata.derived?.botResponse).toBe('fallbackFromWrong');
+    // Timestamp should be generated ISO string
+    expect(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(processed.metadata.timestamp)).toBe(
+      true,
+    );
+    expect(processed.metadata.derived?.timestamp).toBe('generated');
+  });
+
+  it('truncates overlong derived values to hard caps', () => {
+    const longQ = 'Q'.repeat(LIMITS.originalQuestion + 50);
+    const longA = 'A'.repeat(LIMITS.botResponse + 50);
+    const input = {
+      threadContext: {
+        messages: [
+          { role: 'user', text: longQ },
+          { role: 'assistant', text: longA },
+        ],
+      },
+      correctionFields: {
+        wrong: 'x',
+        right: 'y',
+        reason: 'z',
+      },
+    } as const;
+    const processed = parseCorrectionInput(input);
+    expect(processed.originalQuestion.length).toBe(LIMITS.originalQuestion);
+    expect(processed.botResponse.length).toBe(LIMITS.botResponse);
+  });
+
+  it('truncates overlong provided scalars to hard caps', () => {
+    const longQ = 'Q'.repeat(LIMITS.originalQuestion + 5);
+    const longA = 'A'.repeat(LIMITS.botResponse + 5);
+    const input = {
+      threadContext: {
+        originalQuestion: longQ,
+        botResponse: longA,
+      },
+      correctionFields: {
+        wrong: 'x',
+        right: 'y',
+        reason: 'z',
+      },
+    } as const;
+    const processed = parseCorrectionInput(input);
+    expect(processed.originalQuestion.length).toBe(LIMITS.originalQuestion);
+    expect(processed.botResponse.length).toBe(LIMITS.botResponse);
+  });
 });
 
 describe('ChatCorrectionInputSchema type shape', () => {
