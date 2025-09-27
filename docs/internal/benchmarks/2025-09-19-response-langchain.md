@@ -38,7 +38,7 @@ npm run perf:correction
 ```
 
 ```json
-{ "bench": "correction-analysis", "ts": "<ISO-8601 timestamp>",
+{ "bench": "correction-analysis", "schemaVersion": 1, "ts": "<ISO-8601 timestamp>",
   "runs": 200, "concurrency": 20, "real": false, "simMs": 25,
   "successes": 200, "errors": 0,
   "p50": 25.745, "p95": 60.434, "p99": 67.304, "avgMs": 29.394, "throughputRps": 653.595,
@@ -66,6 +66,7 @@ npx cross-env RAW_LATENCIES=1 PRETTY_JSON=1 npm run perf:correction
 ```
 
 Legend:
+- `schemaVersion`: integer version of this JSON schema; incremented on additive or breaking changes that affect downstream parsing
 - `ts`: ISO 8601 timestamp (UTC, or with timezone offset) for when the run started
 - `real`: whether a real model was used (`true`) vs a synthetic latency (`false`)
 - `successes`/`errors`: outcome counts; should sum to `runs`

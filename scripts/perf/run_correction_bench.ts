@@ -21,7 +21,10 @@ import { AIMessage } from '@langchain/core/messages';
 import { createCorrectionAnalysisChain } from '../../src/analysis/correction/chain.js';
 import { OpenAIRateLimiter } from '../../src/openai/OpenAIRateLimiter.js';
 
+const SCHEMA_VERSION = 1 as const;
+
 type StatsBase = {
+  schemaVersion: number;
   runs: number;
   concurrency: number;
   // When REAL=1, simulated delay doesn't apply. Emit `simMs: null` and `real: true` for clarity.
@@ -155,6 +158,7 @@ async function runBench(): Promise<Stats> {
   const rssDeltaMB = (memAfter.rss - memBefore.rss) / (1024 * 1024);
   const includeLatencies = process.env.RAW_LATENCIES === '1';
   const base: StatsBase = {
+    schemaVersion: SCHEMA_VERSION,
     runs,
     concurrency,
     simMs: effectiveReal ? null : simMs,
