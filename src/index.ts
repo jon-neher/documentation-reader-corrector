@@ -12,3 +12,13 @@ export type {
 } from './analysis/correction/types.js';
 export { withOpenAIRateLimit } from './langchain/RateLimitedChatOpenAI.js';
 export * from './prompts/index.js';
+export {
+  parseCorrectionInput,
+  ChatCorrectionInputSchema,
+  ProcessedCorrectionSchema,
+  LIMITS as CORRECTION_LIMITS,
+} from './analysis/correction/parser.js';
+export type {
+  ChatCorrectionInput,
+  ProcessedCorrection,
+} from './analysis/correction/parser.js';
