@@ -1,4 +1,5 @@
 import express from 'express';
+import { pathToFileURL } from 'node:url';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeCorrection } from '../analysis/correction/chain.js';
 import type { CorrectionAnalysisInput } from '../analysis/correction/types.js';
@@ -11,7 +12,19 @@ const JSON_LIMIT = process.env.JSON_LIMIT || '10mb';
 const RATE_LIMIT_PER_MIN = Math.max(1, Number(process.env.RATE_LIMIT_PER_MIN || 10));
 
 const app = express();
-app.set('trust proxy', true); // honor X-Forwarded-For when behind a proxy
+// Configure trust proxy via env; safe default is 'loopback'.
+// EXPRESS: accepts boolean | number | string | function for 'trust proxy'.
+const tp = process.env.TRUST_PROXY;
+const trustProxy = tp == null
+  ? 'loopback'
+  : /^\d+$/.test(tp)
+    ? Number(tp)
+    : tp === 'true'
+      ? true
+      : tp === 'false'
+        ? false
+        : tp; // e.g., 'loopback', 'uniquelocal', CIDR, etc.
+app.set('trust proxy', trustProxy);
 app.use(express.json({ limit: JSON_LIMIT }));
 
 // Simple sliding-window rate limiter per IP for POST /process-correction
@@ -35,7 +48,20 @@ function rateLimit(ip: string): { allowed: boolean; retryAfterMs?: number } {
   return { allowed: true };
 }
 
+// Periodic cleanup to bound memory usage of the in-memory buckets.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, bucket] of buckets) {
+    bucket.timestamps = bucket.timestamps.filter((t) => now - t < windowMs);
+    if (bucket.timestamps.length === 0) buckets.delete(ip);
+  }
+}, windowMs)
+  // Avoid keeping the event loop alive solely for this timer in Node
+  .unref?.();
+
 function getIp(req: express.Request): string {
+  // Express computes req.ip based on the configured 'trust proxy' setting
+  // Fallback to socket remoteAddress to avoid empty string if misconfigured
   return (req.ip || req.socket.remoteAddress || '').toString();
 }
 
@@ -50,17 +76,21 @@ function extractApiKey(req: express.Request): string | undefined {
 
 function authorize(req: express.Request): { ok: true } | { ok: false; message: string } {
   const expected = process.env.INBOUND_API_KEY;
+  const allowMissing = process.env.ALLOW_INSECURE_NO_AUTH === 'true' || process.env.NODE_ENV === 'development';
+
   if (!expected) {
-    // Warn once per process start; avoid log spam on each call.
+    if (!allowMissing) {
+      return { ok: false, message: 'Unauthorized' };
+    }
     if (!(globalThis as any).__inbound_key_warned) {
-      logger.warn('INBOUND_API_KEY not set; accepting all requests');
+      logger.warn('INBOUND_API_KEY not set; auth disabled due to ALLOW_INSECURE_NO_AUTH=true or NODE_ENV=development');
       (globalThis as any).__inbound_key_warned = true;
     }
     return { ok: true };
   }
+
   const provided = extractApiKey(req);
-  if (!provided) return { ok: false, message: 'Missing API key' };
-  if (provided !== expected) return { ok: false, message: 'Invalid API key' };
+  if (!provided || provided !== expected) return { ok: false, message: 'Unauthorized' };
   return { ok: true };
 }
 
@@ -120,7 +150,7 @@ app.post('/process-correction', async (req, res) => {
   if (!limit.allowed) {
     logger.warn('Rate limit exceeded', { correlationId, ip, retryAfterMs: limit.retryAfterMs });
     if (typeof limit.retryAfterMs === 'number') {
-      res.setHeader('retry-after', Math.ceil(limit.retryAfterMs / 1000).toString());
+      res.setHeader('Retry-After', Math.ceil(limit.retryAfterMs / 1000).toString());
     }
     return res.status(429).json({ error: 'Too many requests', correlationId });
   }
@@ -128,9 +158,10 @@ app.post('/process-correction', async (req, res) => {
   try {
     const normalized = normalizeToAnalysisInput(req.body);
     if ('error' in (normalized as any)) {
+      const exposeDetails = process.env.EXPOSE_VALIDATION_ERRORS === 'true' || process.env.NODE_ENV === 'development';
       return res.status(400).json({
         error: 'Invalid input format',
-        details: (normalized as any).details,
+        details: exposeDetails ? (normalized as any).details : [],
         correlationId,
       });
     }
@@ -151,8 +182,26 @@ app.post('/process-correction', async (req, res) => {
   }
 });
 
-// Start server only when this module is the entrypoint
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Start server only when this module is the entrypoint (cross-platform)
+const isEntrypoint = (() => {
+  const argv1 = process.argv[1];
+  if (!argv1) return false;
+  try {
+    return import.meta.url === pathToFileURL(argv1).href;
+  } catch {
+    return false;
+  }
+})();
+
+// Optional: fail fast in production if INBOUND_API_KEY is missing and auth isn't explicitly disabled
+if (isEntrypoint) {
+  const expected = process.env.INBOUND_API_KEY;
+  const allowMissing = process.env.ALLOW_INSECURE_NO_AUTH === 'true' || process.env.NODE_ENV === 'development';
+  if (!expected && !allowMissing) {
+    logger.error('INBOUND_API_KEY is required in production. Set ALLOW_INSECURE_NO_AUTH=true to bypass (not recommended).');
+    process.exit(1);
+  }
+
   app.listen(PORT, HOST, () => {
     logger.info('Service listening', { host: HOST, port: PORT });
   });
